@@ -33,7 +33,7 @@ function App() {
           pauseOnFocusLoss
           draggable
           pauseOnHover
-          theme="light"
+          theme="dark"
         />
       </Router>
     </ConfigProvider>
