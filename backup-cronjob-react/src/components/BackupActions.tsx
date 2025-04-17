@@ -68,7 +68,6 @@ const BackupActions: React.FC<BackupActionsProps> = ({ needAuth, onOperationComp
         Toast.success(result.message || 'Upload file mới nhất thành công');
         setTimeout(() => {
           if (onOperationComplete) onOperationComplete();
-          window.location.reload();
         }, 1000);
       } else {
         Toast.error(result.message || 'Upload file mới nhất thất bại');
@@ -108,7 +107,6 @@ const BackupActions: React.FC<BackupActionsProps> = ({ needAuth, onOperationComp
             Toast.success(result.message || 'Upload tất cả file thành công');
             setTimeout(() => {
               if (onOperationComplete) onOperationComplete();
-              window.location.reload();
             }, 1000);
           } else {
             Toast.error(result.message || 'Upload tất cả file thất bại');

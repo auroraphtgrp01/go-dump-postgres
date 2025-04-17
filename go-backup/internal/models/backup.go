@@ -7,14 +7,14 @@ import (
 
 // BackupFile đại diện cho một file backup
 type BackupFile struct {
-	ID         string
-	Name       string
-	Path       string
-	Size       int64
-	CreatedAt  time.Time
-	Uploaded   bool
-	FileExists bool
-	UploadedAt *time.Time
+	ID         string     `json:"id"`
+	Name       string     `json:"name"`
+	Path       string     `json:"path,omitempty"`
+	Size       int64      `json:"size"`
+	CreatedAt  time.Time  `json:"createdAt"`
+	Uploaded   bool       `json:"uploaded"`
+	FileExists bool       `json:"fileExists,omitempty"`
+	UploadedAt *time.Time `json:"uploadedAt,omitempty"`
 }
 
 // FormatSize trả về kích thước file đã được format

@@ -58,10 +58,9 @@ const BackupList: React.FC<BackupListProps> = ({ needAuth }) => {
         const result = await response.json();
         if (result.success) {
           message.success('Upload thành công');
-          // Refresh data và tải lại trang
+          // Refresh data
           setTimeout(() => {
             fetchBackups();
-            window.location.reload();
           }, 1000);
         } else {
           message.error(result.message || 'Upload thất bại');
@@ -86,22 +85,51 @@ const BackupList: React.FC<BackupListProps> = ({ needAuth }) => {
     });
   };
 
+  // Format date from ISO string
+  const formatDate = (dateString: string | null | undefined) => {
+    if (!dateString) return 'N/A';
+    
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'N/A';
+      
+      return date.toLocaleString('vi-VN', { 
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+    } catch {
+      return 'N/A';
+    }
+  };
+
+  // Ensure file size is formatted properly
+  const safeFormatSize = (size: number | null | undefined) => {
+    if (size === null || size === undefined) return 'N/A';
+    return formatFileSize(size);
+  };
+
   const columns = [
     {
       title: 'Tên file',
       dataIndex: 'name',
       key: 'name',
+      render: (name: string | null | undefined) => name || 'Không có tên',
     },
     {
       title: 'Ngày tạo',
       dataIndex: 'createdAt',
       key: 'createdAt',
+      render: (createdAt: string) => formatDate(createdAt),
     },
     {
       title: 'Kích thước',
       dataIndex: 'size',
       key: 'size',
-      render: (size: number) => formatFileSize(size),
+      render: (size: number) => safeFormatSize(size),
     },
     {
       title: 'Đã upload',
