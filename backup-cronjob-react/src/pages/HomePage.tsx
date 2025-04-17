@@ -1,22 +1,30 @@
 import { useState, useEffect } from 'react';
-import { Card } from 'antd';
+import { Card, Divider } from 'antd';
+import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import BackupActions from '../components/BackupActions';
 import BackupList from '../components/BackupList';
 import AuthBanner from '../components/AuthBanner';
 import OperationAlert from '../components/OperationAlert';
 import { IOperationResult } from '../types';
-import { syncAuthState } from '../utils/auth';
+import { syncAuthState, isAuthenticated } from '../utils/auth';
 
 const HomePage = () => {
   const [needAuth, setNeedAuth] = useState(true);
   const [lastOperation, setLastOperation] = useState<IOperationResult | null>(null);
+  const navigate = useNavigate();
   
   // Check auth state on component mount
   useEffect(() => {
     const checkAuth = async () => {
-      const isAuthenticated = await syncAuthState();
-      setNeedAuth(!isAuthenticated);
+      // Kiểm tra xác thực và chuyển hướng nếu chưa đăng nhập
+      if (!isAuthenticated()) {
+        navigate('/login');
+        return;
+      }
+      
+      const isAuth = await syncAuthState();
+      setNeedAuth(!isAuth);
     };
     
     checkAuth();
@@ -35,7 +43,7 @@ const HomePage = () => {
       // Clean up URL
       window.history.replaceState({}, document.title, window.location.pathname);
     }
-  }, []);
+  }, [navigate]);
   
   // Callback after operation completes
   const handleOperationComplete = () => {
@@ -49,7 +57,11 @@ const HomePage = () => {
       
       <div className="container mx-auto my-4 px-4">
         <Card className="shadow-sm">
-          <h1 className="text-2xl font-bold mb-4">Công cụ Backup và Upload Database</h1>
+          <div className="flex justify-between items-center mb-4">
+            <h1 className="text-2xl font-bold">Công cụ Backup và Upload Database</h1>
+          </div>
+          
+          <Divider />
           
           {/* Auth Banner */}
           <AuthBanner needAuth={needAuth} />

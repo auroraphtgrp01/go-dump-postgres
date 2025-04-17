@@ -58,8 +58,11 @@ const BackupList: React.FC<BackupListProps> = ({ needAuth }) => {
         const result = await response.json();
         if (result.success) {
           message.success('Upload thành công');
-          // Refresh data
-          fetchBackups();
+          // Refresh data và tải lại trang
+          setTimeout(() => {
+            fetchBackups();
+            window.location.reload();
+          }, 1000);
         } else {
           message.error(result.message || 'Upload thất bại');
         }

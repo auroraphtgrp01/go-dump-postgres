@@ -1,6 +1,7 @@
-import { Card, Button, message, Row, Col, Modal } from 'antd';
+import { Card, Button, Row, Col, Modal } from 'antd';
 import { DatabaseOutlined, CloudUploadOutlined } from '@ant-design/icons';
 import { useState } from 'react';
+import Toast from './Toast';
 
 interface BackupActionsProps {
   needAuth: boolean;
@@ -14,6 +15,7 @@ const BackupActions: React.FC<BackupActionsProps> = ({ needAuth, onOperationComp
 
   // Dump database
   const handleDump = async () => {
+    const loadingMessage = Toast.loading('Đang dump database...');
     try {
       setDumpLoading(true);
       const token = localStorage.getItem('auth_token');
@@ -21,30 +23,34 @@ const BackupActions: React.FC<BackupActionsProps> = ({ needAuth, onOperationComp
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
       });
       
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          message.success('Dump database thành công');
+      const result = await response.json();
+      
+      if (response.ok && result.success) {
+        console.log('Dump thành công:', result.message);
+        Toast.success(result.message || 'Dump database thành công');
+        setTimeout(() => {
           if (onOperationComplete) onOperationComplete();
-        } else {
-          message.error(result.message || 'Dump database thất bại');
-        }
+        }, 1000);
       } else {
-        message.error('Không thể dump database');
+        console.error('Dump thất bại:', result.message);
+        Toast.error(result.message || 'Dump database thất bại');
       }
     } catch (error) {
       console.error('Error dumping database:', error);
-      message.error('Lỗi kết nối máy chủ');
+      Toast.error('Lỗi kết nối máy chủ');
     } finally {
+      loadingMessage();
       setDumpLoading(false);
     }
   };
 
   // Upload last backup
   const handleUploadLast = async () => {
+    const loadingMessage = Toast.loading('Đang upload file mới nhất...');
     try {
       setUploadLastLoading(true);
       const token = localStorage.getItem('auth_token');
@@ -52,24 +58,26 @@ const BackupActions: React.FC<BackupActionsProps> = ({ needAuth, onOperationComp
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
       });
       
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          message.success('Upload file mới nhất thành công');
+      const result = await response.json();
+      
+      if (response.ok && result.success) {
+        Toast.success(result.message || 'Upload file mới nhất thành công');
+        setTimeout(() => {
           if (onOperationComplete) onOperationComplete();
-        } else {
-          message.error(result.message || 'Upload file mới nhất thất bại');
-        }
+          window.location.reload();
+        }, 1000);
       } else {
-        message.error('Không thể upload file');
+        Toast.error(result.message || 'Upload file mới nhất thất bại');
       }
     } catch (error) {
       console.error('Error uploading last file:', error);
-      message.error('Lỗi kết nối máy chủ');
+      Toast.error('Lỗi kết nối máy chủ');
     } finally {
+      loadingMessage();
       setUploadLastLoading(false);
     }
   };
@@ -82,6 +90,7 @@ const BackupActions: React.FC<BackupActionsProps> = ({ needAuth, onOperationComp
       okText: 'Đồng ý',
       cancelText: 'Hủy',
       onOk: async () => {
+        const loadingMessage = Toast.loading('Đang upload tất cả file...');
         try {
           setUploadAllLoading(true);
           const token = localStorage.getItem('auth_token');
@@ -89,24 +98,26 @@ const BackupActions: React.FC<BackupActionsProps> = ({ needAuth, onOperationComp
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
             },
           });
           
-          if (response.ok) {
-            const result = await response.json();
-            if (result.success) {
-              message.success('Upload tất cả file thành công');
+          const result = await response.json();
+          
+          if (response.ok && result.success) {
+            Toast.success(result.message || 'Upload tất cả file thành công');
+            setTimeout(() => {
               if (onOperationComplete) onOperationComplete();
-            } else {
-              message.error(result.message || 'Upload tất cả file thất bại');
-            }
+              window.location.reload();
+            }, 1000);
           } else {
-            message.error('Không thể upload file');
+            Toast.error(result.message || 'Upload tất cả file thất bại');
           }
         } catch (error) {
           console.error('Error uploading all files:', error);
-          message.error('Lỗi kết nối máy chủ');
+          Toast.error('Lỗi kết nối máy chủ');
         } finally {
+          loadingMessage();
           setUploadAllLoading(false);
         }
       },

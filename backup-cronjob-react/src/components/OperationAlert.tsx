@@ -1,41 +1,25 @@
-import { Alert } from 'antd';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { IOperationResult } from '../types';
+import Toast from './Toast';
 
 interface OperationAlertProps {
   operation: IOperationResult | null;
 }
 
 const OperationAlert: React.FC<OperationAlertProps> = ({ operation }) => {
-  const [visible, setVisible] = useState(true);
-  
   useEffect(() => {
-    // Reset visibility when operation changes
+    // Hiển thị thông báo khi operation thay đổi
     if (operation) {
-      setVisible(true);
-      
-      // Auto hide after 5 seconds
-      const timer = setTimeout(() => {
-        setVisible(false);
-      }, 5000);
-      
-      return () => clearTimeout(timer);
+      if (operation.success) {
+        Toast.success(operation.message);
+      } else {
+        Toast.error(operation.message);
+      }
     }
   }, [operation]);
   
-  if (!operation || !visible) return null;
-  
-  return (
-    <Alert
-      message={operation.success ? 'Thành công!' : 'Lỗi!'}
-      description={operation.message}
-      type={operation.success ? 'success' : 'error'}
-      showIcon
-      closable
-      onClose={() => setVisible(false)}
-      className="mb-4"
-    />
-  );
+  // Component không render gì cả, chỉ hiển thị toast
+  return null;
 };
 
 export default OperationAlert; 

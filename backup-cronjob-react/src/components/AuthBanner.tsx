@@ -1,30 +1,20 @@
 import { Alert, Button } from 'antd';
 import { GoogleOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 
 interface AuthBannerProps {
   needAuth: boolean;
 }
 
 const AuthBanner: React.FC<AuthBannerProps> = ({ needAuth }) => {
+  const navigate = useNavigate();
+  
   // Nếu không cần xác thực, không hiển thị banner
   if (!needAuth) return null;
 
-  const openAuthWindow = () => {
-    // Tránh mở nhiều cửa sổ xác thực
-    const authWindow = window.open('/auth/google/login', 'Auth Window', 'width=500,height=600');
-    
-    if (authWindow) {
-      const checkClosed = setInterval(() => {
-        if (authWindow.closed) {
-          clearInterval(checkClosed);
-          
-          // Tải lại trang chỉ nếu có token mới
-          if (localStorage.getItem('auth_token')) {
-            window.location.reload();
-          }
-        }
-      }, 500);
-    }
+  const handleAuthClick = () => {
+    // Điều hướng đến trang xác thực Google Drive
+    navigate('/google-auth');
   };
 
   return (
@@ -36,7 +26,7 @@ const AuthBanner: React.FC<AuthBannerProps> = ({ needAuth }) => {
           <Button
             type="primary"
             icon={<GoogleOutlined />}
-            onClick={openAuthWindow}
+            onClick={handleAuthClick}
             className="mt-2"
           >
             Xác thực với Google

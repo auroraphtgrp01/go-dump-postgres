@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Dropdown, Menu, Button, Avatar } from 'antd';
-import { UserOutlined, SettingOutlined, LogoutOutlined } from '@ant-design/icons';
+import { UserOutlined, SettingOutlined, LogoutOutlined, FileTextOutlined } from '@ant-design/icons';
 import { isAuthenticated, logout, getUser } from '../utils/auth';
 
-const Header: React.FC = () => {
+interface HeaderProps {
+  title?: string;
+}
+
+const Header: React.FC<HeaderProps> = ({ title = 'Công cụ Backup và Upload Database' }) => {
   const [loggedIn, setLoggedIn] = useState(isAuthenticated());
   const [user, setUser] = useState(getUser());
 
@@ -24,6 +28,9 @@ const Header: React.FC = () => {
       <Menu.Item key="settings" icon={<SettingOutlined />}>
         <Link to="/settings">Cấu hình hệ thống</Link>
       </Menu.Item>
+      <Menu.Item key="logs" icon={<FileTextOutlined />}>
+        <Link to="/logs">Nhật ký hệ thống</Link>
+      </Menu.Item>
       <Menu.Item key="logout" icon={<LogoutOutlined />} onClick={handleLogout}>
         Đăng xuất
       </Menu.Item>
@@ -32,7 +39,7 @@ const Header: React.FC = () => {
 
   return (
     <div className="flex justify-between items-center bg-blue-600 text-white p-4">
-      <h1 className="text-xl font-bold">Công cụ Backup và Upload Database</h1>
+      <h1 className="text-xl font-bold">{title}</h1>
       <div>
         {loggedIn ? (
           <Dropdown overlay={menu} placement="bottomRight">

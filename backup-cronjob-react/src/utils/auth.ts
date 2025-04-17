@@ -1,6 +1,9 @@
 /**
  * Auth utilities for the backup application
  */
+import Toast from '../components/Toast';
+import { IUser } from '../types';
+import axios from 'axios';
 
 // Check if user is authenticated
 export const isAuthenticated = (): boolean => {
@@ -10,18 +13,18 @@ export const isAuthenticated = (): boolean => {
 };
 
 // Get user info from localStorage
-export const getUser = () => {
+export const getUser = (): IUser | null => {
   const user = localStorage.getItem('user');
   return user ? JSON.parse(user) : null;
 };
 
 // Fetch user info from server
-export const fetchUserInfo = async (): Promise<any | null> => {
+export const fetchUserInfo = async (): Promise<IUser | null> => {
   try {
     const token = localStorage.getItem('auth_token');
     if (!token) return null;
 
-    const response = await fetch('/me', {
+    const response = await fetch('/api/me', {
       headers: {
         'Authorization': 'Bearer ' + token
       }
@@ -38,7 +41,24 @@ export const fetchUserInfo = async (): Promise<any | null> => {
     return null;
   } catch (error) {
     console.error("Error fetching user info:", error);
+    Toast.error('Không thể lấy thông tin người dùng');
     return null;
+  }
+};
+
+// Kiểm tra trạng thái xác thực Google Drive
+export const checkGoogleDriveAuth = async (): Promise<boolean> => {
+  try {
+    const response = await axios.get('/api/drive/status');
+    
+    // Kiểm tra trạng thái xác thực từ phản hồi API
+    const isAuthenticated = response.data.drive_status?.is_authenticated || false;
+    
+    console.log('Trạng thái xác thực Google Drive:', isAuthenticated);
+    return isAuthenticated;
+  } catch (error) {
+    console.error('Lỗi kiểm tra xác thực Google Drive:', error);
+    return false;
   }
 };
 
@@ -52,32 +72,60 @@ export const syncAuthState = async (): Promise<boolean> => {
   // If missing user info, try to fetch from server
   if (!localStorage.getItem('user')) {
     const user = await fetchUserInfo();
-    return !!user;
+    if (!user) return false;
   }
 
-  return true;
+  // Kiểm tra xác thực Google Drive
+  const isDriveAuthenticated = await checkGoogleDriveAuth();
+  
+  return isDriveAuthenticated;
 };
 
 // Logout function
 export const logout = async (): Promise<void> => {
+  const loadingMessage = Toast.loading('Đang đăng xuất...');
   try {
     const token = localStorage.getItem('auth_token');
     
     // Call logout API
-    await fetch('/logout', {
+    await fetch('/api/logout', {
       method: 'POST',
       headers: {
         'Authorization': 'Bearer ' + token
       }
     });
-  } catch (error) {
-    console.error('Error during logout:', error);
-  } finally {
+    
+    // Hiển thị thông báo thành công
+    Toast.success('Đăng xuất thành công');
+    
+    // Đóng thông báo loading
+    loadingMessage();
+    
     // Clear auth data regardless of API success
     localStorage.removeItem('auth_token');
     localStorage.removeItem('user');
     
-    // Redirect to login page
-    window.location.href = '/login';
+    // Đợi một chút để hiển thị thông báo thành công
+    setTimeout(() => {
+      // Redirect to login page
+      window.location.href = '/login';
+    }, 1000);
+    
+  } catch (error) {
+    console.error('Error during logout:', error);
+    Toast.error('Có lỗi xảy ra khi đăng xuất');
+    
+    // Đóng thông báo loading
+    loadingMessage();
+    
+    // Clear auth data regardless of API success
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('user');
+    
+    // Đợi một chút để hiển thị thông báo lỗi
+    setTimeout(() => {
+      // Redirect to login page
+      window.location.href = '/login';
+    }, 1000);
   }
 }; 

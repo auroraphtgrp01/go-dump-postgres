@@ -1,22 +1,32 @@
 import { useState, useEffect } from 'react';
-import { Card, Form, Input, Button, Divider, message, Switch } from 'antd';
+import { Card, Form, Input, Button, message, Switch, Tabs } from 'antd';
 import { SaveOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import { isAuthenticated } from '../utils/auth';
 
-interface ConfigValues {
-  backup_dir: string;
-  drive_folder_id: string;
-  backup_retention_days: number;
-  enable_cron: boolean;
-  cron_schedule: string;
+// Định nghĩa interface cho dữ liệu cấu hình từ API
+interface ConfigItem {
+  id: number;
+  key: string;
+  value: string;
+  group: string;
+  label: string;
+  type: string;
+}
+
+interface ConfigGroup {
+  group: string;
+  label: string;
+  configs: ConfigItem[];
 }
 
 const ConfigPage = () => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
+  const [configGroups, setConfigGroups] = useState<ConfigGroup[]>([]);
   const navigate = useNavigate();
+  const [messageApi, contextHolder] = message.useMessage();
   
   // Redirect if not logged in
   useEffect(() => {
@@ -40,24 +50,54 @@ const ConfigPage = () => {
         if (response.ok) {
           const data = await response.json();
           if (data.success) {
-            form.setFieldsValue(data.configs);
+            setConfigGroups(data.data);
+            
+            // Chuẩn bị dữ liệu cho form
+            const formValues: Record<string, string> = {};
+            data.data.forEach((group: ConfigGroup) => {
+              group.configs.forEach((config: ConfigItem) => {
+                formValues[config.key] = config.value;
+              });
+            });
+            
+            form.setFieldsValue(formValues);
           }
         }
       } catch (error) {
         console.error('Error fetching config:', error);
-        message.error('Lỗi khi tải cấu hình');
+        messageApi.error({
+          content: 'Lỗi khi tải cấu hình',
+          duration: 5,
+        });
       } finally {
         setLoading(false);
       }
     };
     
     fetchConfig();
-  }, [form]);
+  }, [form, messageApi]);
   
   // Save config
-  const handleSave = async (values: ConfigValues) => {
+  const handleSave = async (values: Record<string, string>) => {
     try {
       setLoading(true);
+
+      // Tạo bản sao của values để xử lý
+      const dataToSubmit = { ...values };
+      
+      // Loại bỏ JWT_SECRET hoàn toàn
+      delete dataToSubmit.JWT_SECRET;
+      
+      // Loại bỏ các giá trị mật khẩu không thay đổi (vẫn là •••••••)
+      configGroups.forEach(group => {
+        group.configs.forEach(config => {
+          if (config.type === 'password' && dataToSubmit[config.key] === '••••••••') {
+            // Không gửi các giá trị mật khẩu đã bị ẩn
+            delete dataToSubmit[config.key];
+          }
+        });
+      });
+
       const token = localStorage.getItem('auth_token');
       const response = await fetch('/api/configs', {
         method: 'POST',
@@ -65,29 +105,55 @@ const ConfigPage = () => {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ configs: values }),
+        body: JSON.stringify(dataToSubmit),
       });
       
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          message.success('Lưu cấu hình thành công');
-        } else {
-          message.error(data.message || 'Lưu cấu hình thất bại');
-        }
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
+        messageApi.success({
+          content: 'Lưu cấu hình thành công',
+          duration: 5,
+        });
       } else {
-        message.error('Lưu cấu hình thất bại');
+        messageApi.error({
+          content: data.message || 'Lưu cấu hình thất bại',
+          duration: 5,
+        });
       }
     } catch (error) {
       console.error('Error saving config:', error);
-      message.error('Lỗi khi lưu cấu hình');
+      messageApi.error({
+        content: 'Lỗi khi lưu cấu hình',
+        duration: 5,
+      });
     } finally {
       setLoading(false);
     }
   };
   
+  // Render form item based on config type
+  const renderFormItem = (config: ConfigItem) => {
+    // Không cho sửa JWT_SECRET
+    if (config.key === 'JWT_SECRET') {
+      return <Input.Password placeholder={config.label} disabled />;
+    }
+    
+    switch (config.type) {
+      case 'password':
+        return <Input.Password placeholder={config.label} />;
+      case 'number':
+        return <Input type="number" min={1} placeholder={config.label} />;
+      case 'switch':
+        return <Switch />;
+      default:
+        return <Input placeholder={config.label} />;
+    }
+  };
+  
   return (
     <div>
+      {contextHolder}
       <Header />
       
       <div className="container mx-auto my-4 px-4">
@@ -99,60 +165,31 @@ const ConfigPage = () => {
             form={form}
             layout="vertical"
             onFinish={handleSave}
-            initialValues={{
-              backup_dir: '/backups',
-              backup_retention_days: 30,
-              enable_cron: true,
-              cron_schedule: '0 0 * * *',
-            }}
           >
-            <Divider orientation="left">Cấu hình Backup</Divider>
+            <Tabs 
+              defaultActiveKey="backup"
+              items={configGroups.map((group) => ({
+                key: group.group,
+                label: group.label,
+                children: (
+                  <div className="p-4">
+                    {group.configs.map((config) => (
+                      <Form.Item
+                        key={config.key}
+                        name={config.key}
+                        label={config.label}
+                        rules={[{ required: true, message: `Vui lòng nhập ${config.label}!` }]}
+                        valuePropName={config.type === 'switch' ? 'checked' : 'value'}
+                      >
+                        {renderFormItem(config)}
+                      </Form.Item>
+                    ))}
+                  </div>
+                ),
+              }))}
+            />
             
-            <Form.Item
-              name="backup_dir"
-              label="Thư mục lưu backup"
-              rules={[{ required: true, message: 'Vui lòng nhập thư mục backup!' }]}
-            >
-              <Input placeholder="/path/to/backup/directory" />
-            </Form.Item>
-            
-            <Form.Item
-              name="backup_retention_days"
-              label="Số ngày lưu giữ backup"
-              rules={[{ required: true, message: 'Vui lòng nhập số ngày!' }]}
-            >
-              <Input type="number" min={1} />
-            </Form.Item>
-            
-            <Divider orientation="left">Cấu hình Google Drive</Divider>
-            
-            <Form.Item
-              name="drive_folder_id"
-              label="ID thư mục Google Drive"
-              rules={[{ required: true, message: 'Vui lòng nhập ID thư mục Drive!' }]}
-            >
-              <Input placeholder="1a2b3c4d5e..." />
-            </Form.Item>
-            
-            <Divider orientation="left">Cấu hình Cron</Divider>
-            
-            <Form.Item
-              name="enable_cron"
-              label="Bật lịch tự động backup"
-              valuePropName="checked"
-            >
-              <Switch />
-            </Form.Item>
-            
-            <Form.Item
-              name="cron_schedule"
-              label="Lịch backup (định dạng cron)"
-              rules={[{ required: true, message: 'Vui lòng nhập lịch cron!' }]}
-            >
-              <Input placeholder="0 0 * * *" />
-            </Form.Item>
-            
-            <Form.Item>
+            <Form.Item className="mt-4">
               <Button
                 type="primary"
                 htmlType="submit"

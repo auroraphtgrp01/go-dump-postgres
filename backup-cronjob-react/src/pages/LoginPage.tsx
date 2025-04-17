@@ -1,8 +1,9 @@
 import { useEffect } from 'react';
-import { Card, Form, Input, Button, message } from 'antd';
+import { Card, Form, Input, Button } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { isAuthenticated } from '../utils/auth';
+import Toast from '../components/Toast';
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -15,14 +16,20 @@ const LoginPage = () => {
   }, [navigate]);
   
   const handleLogin = async (values: { username: string; password: string }) => {
+    // Hiển thị thông báo loading
+    const loadingMessage = Toast.loading('Đang đăng nhập...');
+    
     try {
-      const response = await fetch('/login', {
+      const response = await fetch('/api/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(values),
       });
+      
+      // Đóng thông báo loading
+      loadingMessage();
       
       if (response.ok) {
         const data = await response.json();
@@ -31,17 +38,24 @@ const LoginPage = () => {
           localStorage.setItem('auth_token', data.token);
           localStorage.setItem('user', JSON.stringify(data.user));
           
-          // Redirect to home page
-          navigate('/');
+          // Hiển thị thông báo thành công rõ ràng
+          Toast.success('Đăng nhập thành công!');
+          
+          // Đợi 1 giây cho người dùng thấy thông báo trước khi chuyển trang
+          setTimeout(() => {
+            navigate('/');
+          }, 1000);
         } else {
-          message.error(data.message || 'Đăng nhập thất bại');
+          Toast.error(data.message || 'Đăng nhập thất bại');
         }
       } else {
-        message.error('Đăng nhập thất bại');
+        Toast.error('Đăng nhập thất bại');
       }
     } catch (error) {
       console.error('Login error:', error);
-      message.error('Lỗi kết nối máy chủ');
+      // Đóng thông báo loading nếu có lỗi (phòng trường hợp chưa đóng)
+      loadingMessage();
+      Toast.error('Lỗi kết nối máy chủ');
     }
   };
   
