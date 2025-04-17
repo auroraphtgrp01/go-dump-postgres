@@ -537,7 +537,7 @@ func (d *DriveUploader) UploadFile(filePath string) UploadResult {
 		fmt.Sscanf(fileId, "%d", &backupID)
 		if backupID > 0 {
 			fmt.Printf("Cập nhật trạng thái upload cho file ID: %d\n", backupID)
-			if err := backupdb.UpdateBackupUploadStatus(backupID, true); err != nil {
+			if err := backupdb.UpdateBackupUploadStatus(backupID, true, webLink); err != nil {
 				fmt.Printf("Không thể cập nhật trạng thái upload: %v\n", err)
 			} else {
 				fmt.Println("Đã cập nhật trạng thái upload thành công")
@@ -591,7 +591,7 @@ func (d *DriveUploader) UploadFile(filePath string) UploadResult {
 	fmt.Sscanf(fileId, "%d", &backupID)
 	if backupID > 0 {
 		fmt.Printf("Cập nhật trạng thái upload cho file ID: %d\n", backupID)
-		if err := backupdb.UpdateBackupUploadStatus(backupID, true); err != nil {
+		if err := backupdb.UpdateBackupUploadStatus(backupID, true, webLink); err != nil {
 			fmt.Printf("Không thể cập nhật trạng thái upload: %v\n", err)
 		} else {
 			fmt.Println("Đã cập nhật trạng thái upload thành công")
@@ -699,10 +699,13 @@ func (d *DriveUploader) UploadAllBackups() error {
 		if existingFile != nil {
 			fmt.Printf("File %s đã tồn tại trên Drive, bỏ qua\n", backup.Name)
 
+			// Tạo webLink
+			webLink := fmt.Sprintf("https://drive.google.com/file/d/%s/view", existingFile.Id)
+
 			// Cập nhật trạng thái trong database
 			var backupID int64
 			fmt.Sscanf(backup.ID, "%d", &backupID)
-			if err := backupdb.UpdateBackupUploadStatus(backupID, true); err != nil {
+			if err := backupdb.UpdateBackupUploadStatus(backupID, true, webLink); err != nil {
 				fmt.Printf("Không thể cập nhật trạng thái file %s: %v\n", backup.Name, err)
 			}
 
@@ -759,10 +762,13 @@ func (d *DriveUploader) UploadAllBackups() error {
 		fmt.Printf("Đã upload file %s (ID: %s)\n", backup.Name, file.Id)
 		successCount++
 
+		// Tạo webLink
+		webLink := fmt.Sprintf("https://drive.google.com/file/d/%s/view", file.Id)
+
 		// Cập nhật trạng thái trong database
 		var backupID int64
 		fmt.Sscanf(backup.ID, "%d", &backupID)
-		if err := backupdb.UpdateBackupUploadStatus(backupID, true); err != nil {
+		if err := backupdb.UpdateBackupUploadStatus(backupID, true, webLink); err != nil {
 			fmt.Printf("Không thể cập nhật trạng thái file %s: %v\n", backup.Name, err)
 		}
 	}

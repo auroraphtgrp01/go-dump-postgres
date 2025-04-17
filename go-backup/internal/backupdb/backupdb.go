@@ -73,7 +73,7 @@ func AddBackup(filename, filepath string, filesize int64, createdAt time.Time) (
 // GetAllBackups lấy danh sách backup từ database
 func GetAllBackups() ([]*models.BackupFile, error) {
 	rows, err := database.DB.Query(`
-		SELECT id, filename, filepath, filesize, created_at, uploaded, uploaded_at
+		SELECT id, filename, filepath, filesize, created_at, uploaded, uploaded_at, drive_link
 		FROM backups
 		ORDER BY created_at DESC
 	`)
@@ -90,8 +90,9 @@ func GetAllBackups() ([]*models.BackupFile, error) {
 		var createdAt string
 		var uploaded bool
 		var uploadedAt sql.NullString
+		var driveLink sql.NullString
 
-		err := rows.Scan(&id, &filename, &filepath, &filesize, &createdAt, &uploaded, &uploadedAt)
+		err := rows.Scan(&id, &filename, &filepath, &filesize, &createdAt, &uploaded, &uploadedAt, &driveLink)
 		if err != nil {
 			return nil, fmt.Errorf("lỗi khi đọc dữ liệu backup: %w", err)
 		}
@@ -122,6 +123,11 @@ func GetAllBackups() ([]*models.BackupFile, error) {
 			CreatedAt:  t,
 			Uploaded:   uploaded,
 			FileExists: fileExists,
+		}
+
+		// Thêm đường dẫn Drive nếu có
+		if driveLink.Valid && driveLink.String != "" {
+			backup.DriveLink = driveLink.String
 		}
 
 		// Thêm thông tin thời gian upload nếu có
@@ -175,7 +181,7 @@ func FindLatestBackup() (*models.BackupFile, error) {
 }
 
 // UpdateBackupUploadStatus cập nhật trạng thái upload của file backup
-func UpdateBackupUploadStatus(id int64, uploaded bool) error {
+func UpdateBackupUploadStatus(id int64, uploaded bool, driveLink string) error {
 	var uploadedAt interface{}
 	if uploaded {
 		uploadedAt = time.Now()
@@ -184,8 +190,8 @@ func UpdateBackupUploadStatus(id int64, uploaded bool) error {
 	}
 
 	_, err := database.DB.Exec(
-		"UPDATE backups SET uploaded = ?, uploaded_at = ? WHERE id = ?",
-		uploaded, uploadedAt, id,
+		"UPDATE backups SET uploaded = ?, uploaded_at = ?, drive_link = ? WHERE id = ?",
+		uploaded, uploadedAt, driveLink, id,
 	)
 	if err != nil {
 		return fmt.Errorf("lỗi khi cập nhật trạng thái upload: %w", err)

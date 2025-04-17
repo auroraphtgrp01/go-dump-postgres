@@ -10,6 +10,7 @@ export interface IBackupFile {
   createdAt: string;
   size: number;
   uploaded: boolean;
+  driveLink?: string;
 }
 
 export interface IOperationResult {

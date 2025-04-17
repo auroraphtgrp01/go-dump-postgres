@@ -101,7 +101,8 @@ func createSchema() error {
 			filesize INTEGER NOT NULL,
 			created_at DATETIME NOT NULL,
 			uploaded BOOLEAN DEFAULT 0,
-			uploaded_at DATETIME
+			uploaded_at DATETIME,
+			drive_link TEXT
 		)
 	`)
 	return err
@@ -401,7 +402,7 @@ func GetBackupsByFolder() ([]*models.BackupFile, error) {
 }
 
 // UpdateBackupUploadStatus cập nhật trạng thái upload của file backup
-func UpdateBackupUploadStatus(id int64, uploaded bool) error {
+func UpdateBackupUploadStatus(id int64, uploaded bool, driveLink string) error {
 	var uploadedAt interface{}
 	if uploaded {
 		uploadedAt = time.Now()
@@ -410,8 +411,8 @@ func UpdateBackupUploadStatus(id int64, uploaded bool) error {
 	}
 
 	_, err := DB.Exec(
-		"UPDATE backups SET uploaded = ?, uploaded_at = ? WHERE id = ?",
-		uploaded, uploadedAt, id,
+		"UPDATE backups SET uploaded = ?, uploaded_at = ?, drive_link = ? WHERE id = ?",
+		uploaded, uploadedAt, driveLink, id,
 	)
 	if err != nil {
 		return fmt.Errorf("lỗi khi cập nhật trạng thái upload: %w", err)

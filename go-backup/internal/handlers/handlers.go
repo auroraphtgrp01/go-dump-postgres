@@ -356,10 +356,10 @@ func (h *Handler) UploadLastHandler(c *gin.Context) {
 	if err != nil {
 		log.Printf("Cảnh báo: Không thể chuyển đổi ID backup: %v", err)
 	} else {
-		if err := database.UpdateBackupUploadStatus(backupID, true); err != nil {
+		if err := database.UpdateBackupUploadStatus(backupID, true, result.WebLink); err != nil {
 			log.Printf("Cảnh báo: Không thể cập nhật trạng thái upload: %v", err)
 		} else {
-			log.Printf("Đã cập nhật trạng thái upload thành công cho file ID: %d", backupID)
+			log.Printf("Đã cập nhật trạng thái upload thành công cho file ID: %d, link: %s", backupID, result.WebLink)
 		}
 	}
 
@@ -441,8 +441,30 @@ func (h *Handler) UploadSingleHandler(c *gin.Context) {
 	authToken, _ := c.Cookie("auth_token")
 	authHeader := c.GetHeader("Authorization")
 
-	// Nếu không có bất kỳ phương thức xác thực nào
-	if cookieValue != "true" && authToken == "" && authHeader == "" {
+	// Biến để theo dõi trạng thái xác thực
+	isAuthenticated := false
+
+	// Kiểm tra cookie logged_in và auth_token
+	if cookieValue == "true" && authToken != "" {
+		// Xác thực JWT token trong cookie
+		_, err := auth.ValidateJWT(authToken)
+		if err == nil {
+			isAuthenticated = true
+		}
+	}
+
+	// Kiểm tra Authorization header nếu chưa xác thực
+	if !isAuthenticated && authHeader != "" && len(authHeader) > 7 && authHeader[:7] == "Bearer " {
+		token := authHeader[7:]
+		// Xác thực JWT token trong header
+		_, err := auth.ValidateJWT(token)
+		if err == nil {
+			isAuthenticated = true
+		}
+	}
+
+	// Nếu không xác thực được bằng bất kỳ phương thức nào
+	if !isAuthenticated {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
 			"message": "Vui lòng đăng nhập để thực hiện thao tác này",
@@ -528,10 +550,10 @@ func (h *Handler) UploadSingleHandler(c *gin.Context) {
 	if err != nil {
 		log.Printf("Cảnh báo: Không thể chuyển đổi ID backup: %v", err)
 	} else {
-		if err := database.UpdateBackupUploadStatus(backupID, true); err != nil {
+		if err := backupdb.UpdateBackupUploadStatus(backupID, true, result.WebLink); err != nil {
 			log.Printf("Cảnh báo: Không thể cập nhật trạng thái upload: %v", err)
 		} else {
-			log.Printf("Đã cập nhật trạng thái upload thành công cho file ID: %d", backupID)
+			log.Printf("Đã cập nhật trạng thái upload thành công cho file ID: %d, link: %s", backupID, result.WebLink)
 		}
 	}
 

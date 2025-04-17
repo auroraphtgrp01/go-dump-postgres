@@ -1,5 +1,5 @@
-import { Table, Tag, Button, message, Modal } from 'antd';
-import { DownloadOutlined, CloudUploadOutlined } from '@ant-design/icons';
+import { Table, Tag, Button, message } from 'antd';
+import { DownloadOutlined, CloudUploadOutlined, LinkOutlined } from '@ant-design/icons';
 import { useState, useEffect } from 'react';
 import { IBackupFile } from '../types';
 import { formatFileSize } from '../utils/helpers';
@@ -45,44 +45,55 @@ const BackupList: React.FC<BackupListProps> = ({ needAuth }) => {
 
   // Upload a single backup
   const handleUpload = async (id: string) => {
+    console.log('Bắt đầu upload file ID:', id);
     try {
       const token = localStorage.getItem('auth_token');
+      console.log('Token từ localStorage:', token ? `${token.substring(0, 10)}...` : 'không có');
+      
+      // Hiển thị thông báo loading - dùng hàm đơn giản hơn
+      message.loading('Đang upload file lên Google Drive...', 0);
+      
       const response = await fetch(`/upload/${id}`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : '',
         },
       });
       
+      // Đóng tất cả thông báo đang hiển thị
+      message.destroy();
+      
       if (response.ok) {
         const result = await response.json();
+        console.log('Kết quả upload:', result);
+        
         if (result.success) {
+          // Hiển thị thông báo thành công dùng cách đơn giản
           message.success('Upload thành công');
           // Refresh data
           setTimeout(() => {
             fetchBackups();
           }, 1000);
         } else {
+          console.error('Upload thất bại:', result.message);
           message.error(result.message || 'Upload thất bại');
         }
       } else {
-        message.error('Không thể upload file');
+        const errorText = await response.text();
+        console.error('Lỗi response:', response.status, errorText);
+        
+        if (response.status === 401) {
+          message.error('Phiên làm việc hết hạn, vui lòng đăng nhập lại');
+        } else {
+          message.error(`Không thể upload file (${response.status})`);
+        }
       }
     } catch (error) {
       console.error('Error uploading file:', error);
+      message.destroy(); // Đảm bảo đóng thông báo loading nếu có lỗi
       message.error('Lỗi kết nối máy chủ');
     }
-  };
-
-  // Confirm upload
-  const confirmUpload = (id: string) => {
-    Modal.confirm({
-      title: 'Xác nhận',
-      content: 'Bạn có chắc chắn muốn upload file này lên Google Drive?',
-      okText: 'Đồng ý',
-      cancelText: 'Hủy',
-      onOk: () => handleUpload(id),
-    });
   };
 
   // Format date from ISO string
@@ -142,6 +153,26 @@ const BackupList: React.FC<BackupListProps> = ({ needAuth }) => {
       ),
     },
     {
+      title: 'Google Drive',
+      dataIndex: 'driveLink',
+      key: 'driveLink',
+      render: (driveLink: string, record: IBackupFile) => (
+        driveLink && record.uploaded ? (
+          <Button 
+            type="link" 
+            icon={<LinkOutlined />} 
+            href={driveLink} 
+            target="_blank"
+            size="small"
+          >
+            Xem trên Drive
+          </Button>
+        ) : (
+          <span>-</span>
+        )
+      ),
+    },
+    {
       title: 'Thao tác',
       key: 'action',
       render: (_: unknown, record: IBackupFile) => (
@@ -162,7 +193,7 @@ const BackupList: React.FC<BackupListProps> = ({ needAuth }) => {
               type="primary"
               icon={<CloudUploadOutlined />}
               size="small"
-              onClick={() => confirmUpload(record.id)}
+              onClick={() => handleUpload(record.id)}
               disabled={needAuth}
             >
               Upload

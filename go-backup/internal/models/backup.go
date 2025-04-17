@@ -15,6 +15,7 @@ type BackupFile struct {
 	Uploaded   bool       `json:"uploaded"`
 	FileExists bool       `json:"fileExists,omitempty"`
 	UploadedAt *time.Time `json:"uploadedAt,omitempty"`
+	DriveLink  string     `json:"driveLink,omitempty"`
 }
 
 // FormatSize trả về kích thước file đã được format
