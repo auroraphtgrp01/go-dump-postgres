@@ -5,7 +5,6 @@ import (
 
 	"log"
 
-	"github.com/backup-cronjob/internal/auth"
 	"github.com/backup-cronjob/internal/database"
 	"github.com/backup-cronjob/internal/models"
 	"github.com/gin-gonic/gin"
@@ -25,6 +24,11 @@ func (h *Handler) GetConfigsHandler(c *gin.Context) {
 	// Nhóm cấu hình theo group
 	configsByGroup := make(map[string][]models.AppConfig)
 	for _, cfg := range configs {
+		// Bỏ qua JWT_SECRET, không hiển thị trong API
+		if cfg.Key == "JWT_SECRET" {
+			continue
+		}
+
 		// Ẩn giá trị của các trường nhạy cảm
 		if cfg.Type == "password" && cfg.Value != "" {
 			cfg.Value = "••••••••" // Ẩn giá trị thực
@@ -72,17 +76,26 @@ func (h *Handler) GetConfigsByGroupHandler(c *gin.Context) {
 		return
 	}
 
-	// Ẩn giá trị của các trường nhạy cảm
-	for i := range configs {
-		if configs[i].Type == "password" && configs[i].Value != "" {
-			configs[i].Value = "••••••••" // Ẩn giá trị thực
+	// Xử lý và lọc configs
+	filteredConfigs := make([]models.AppConfig, 0)
+	for _, cfg := range configs {
+		// Bỏ qua JWT_SECRET
+		if cfg.Key == "JWT_SECRET" {
+			continue
 		}
+
+		// Ẩn giá trị của các trường nhạy cảm
+		if cfg.Type == "password" && cfg.Value != "" {
+			cfg.Value = "••••••••" // Ẩn giá trị thực
+		}
+
+		filteredConfigs = append(filteredConfigs, cfg)
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"group":   group,
-		"configs": configs,
+		"configs": filteredConfigs,
 	})
 }
 
@@ -96,6 +109,12 @@ func (h *Handler) UpdateConfigsHandler(c *gin.Context) {
 			"error":   "Dữ liệu không hợp lệ",
 		})
 		return
+	}
+
+	// Ngăn chặn cập nhật JWT_SECRET
+	if _, exists := configUpdates["JWT_SECRET"]; exists {
+		delete(configUpdates, "JWT_SECRET")
+		log.Printf("WARNING: Nỗ lực cập nhật JWT_SECRET bị từ chối vì lý do bảo mật")
 	}
 
 	// Cập nhật từng cấu hình
@@ -115,13 +134,6 @@ func (h *Handler) UpdateConfigsHandler(c *gin.Context) {
 		log.Printf("Warning: Không thể tải lại cấu hình: %v", err)
 	} else {
 		log.Printf("Đã tải lại cấu hình sau khi cập nhật thành công")
-	}
-
-	// Cập nhật JWT secret nếu đã thay đổi
-	if _, ok := configUpdates["JWT_SECRET"]; ok {
-		log.Printf("JWT Secret đã được cập nhật thành công")
-		log.Printf("Khởi tạo lại module auth với JWT secret mới")
-		auth.Init(h.Config)
 	}
 
 	c.JSON(http.StatusOK, gin.H{

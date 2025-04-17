@@ -32,6 +32,8 @@ func DefaultConfigs() []AppConfig {
 		{Key: "FOLDER_DRIVE", Value: "", Group: "google", Label: "ID thư mục trên Google Drive", Type: "text", CreatedAt: now, UpdatedAt: now},
 
 		// Nhóm Backup
+		{Key: "BACKUP_DIR", Value: "./backups", Group: "backup", Label: "Thư mục lưu backup", Type: "text", CreatedAt: now, UpdatedAt: now},
+		{Key: "BACKUP_RETENTION_DAYS", Value: "30", Group: "backup", Label: "Số ngày lưu giữ backup", Type: "number", CreatedAt: now, UpdatedAt: now},
 		{Key: "CRON_SCHEDULE", Value: "0 0 * * *", Group: "backup", Label: "Lịch backup tự động (Cron format)", Type: "text", CreatedAt: now, UpdatedAt: now},
 
 		// Nhóm Hệ thống

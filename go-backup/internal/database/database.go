@@ -381,8 +381,15 @@ func GetBackupsByFolder() ([]*models.BackupFile, error) {
 		// Chuyển đổi thời gian
 		t, err := time.Parse("2006-01-02 15:04:05", createdAt)
 		if err != nil {
-			// Nếu không parse được thời gian, dùng thời gian hiện tại
-			backup.CreatedAt = time.Now()
+			// Thử parse với định dạng ISO 8601
+			t, err = time.Parse(time.RFC3339, createdAt)
+			if err != nil {
+				// Nếu không parse được thời gian, dùng thời gian hiện tại
+				backup.CreatedAt = time.Now()
+				fmt.Printf("Không thể parse thời gian '%s' cho file %s: %v\n", createdAt, backup.Name, err)
+			} else {
+				backup.CreatedAt = t
+			}
 		} else {
 			backup.CreatedAt = t
 		}

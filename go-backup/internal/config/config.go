@@ -67,16 +67,38 @@ func InitConfig() (cfg *Config, err error) {
 		FolderDrive:         getEnv("GOOGLE_FOLDER", "Backups"),
 	}
 
-	// Đảm bảo BackupDir có dấu / cuối cùng
-	if !strings.HasSuffix(cfg.BackupDir, "/") {
-		cfg.BackupDir = cfg.BackupDir + "/"
+	// Chỉ chuyển đổi đường dẫn tuyệt đối nếu không bắt đầu bằng ./
+	if !strings.HasPrefix(cfg.BackupDir, "./") && !filepath.IsAbs(cfg.BackupDir) {
+		absBackupDir, err := filepath.Abs(cfg.BackupDir)
+		if err != nil {
+			log.Printf("Warning: Không thể chuyển đổi đường dẫn backup thành đường dẫn tuyệt đối: %v, giữ nguyên đường dẫn tương đối", err)
+		} else {
+			cfg.BackupDir = absBackupDir
+			log.Printf("Đã chuyển đổi đường dẫn backup thành đường dẫn tuyệt đối: %s", cfg.BackupDir)
+		}
+	} else {
+		log.Printf("Giữ nguyên đường dẫn backup: %s", cfg.BackupDir)
+	}
+
+	// Đảm bảo BackupDir có dấu separator cuối cùng
+	if !strings.HasSuffix(cfg.BackupDir, string(filepath.Separator)) {
+		cfg.BackupDir = cfg.BackupDir + string(filepath.Separator)
 	}
 
 	// Đảm bảo thư mục backup tồn tại
-	err = os.MkdirAll(cfg.BackupDir, 0755)
+	backupDirClean := filepath.Clean(cfg.BackupDir)
+	log.Printf("Đang tạo thư mục backup tại: %s", backupDirClean)
+	err = os.MkdirAll(backupDirClean, 0755)
 	if err != nil {
 		return nil, fmt.Errorf("không thể tạo thư mục backup: %v", err)
 	}
+
+	// Kiểm tra xem thư mục đã được tạo thành công
+	if _, err := os.Stat(backupDirClean); os.IsNotExist(err) {
+		return nil, fmt.Errorf("không thể xác minh thư mục backup đã tạo: %v", err)
+	}
+
+	log.Printf("Đã tạo thư mục backup thành công: %s", backupDirClean)
 
 	// Đảm bảo thư mục data tồn tại
 	dataDir := filepath.Dir(cfg.DBSource)
@@ -112,7 +134,9 @@ func (cfg *Config) LoadConfigFromDB(getConfigFn ConfigLoader) error {
 	// Duyệt qua các key cần thiết
 	keys := []string{
 		"ADMIN_USERNAME", "ADMIN_PASSWORD", "JWT_SECRET",
-		"GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_FOLDER",
+		"GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "FOLDER_DRIVE",
+		"DB_USER", "DB_PASSWORD", "CONTAINER_NAME", "DB_NAME",
+		"BACKUP_DIR", "BACKUP_RETENTION_DAYS", "CRON_SCHEDULE",
 	}
 
 	// Nạp từng giá trị
@@ -137,8 +161,54 @@ func (cfg *Config) LoadConfigFromDB(getConfigFn ConfigLoader) error {
 			cfg.GoogleClientID = value
 		case "GOOGLE_CLIENT_SECRET":
 			cfg.GoogleClientSecret = value
-		case "GOOGLE_FOLDER":
+		case "FOLDER_DRIVE":
 			cfg.FolderDrive = value
+		case "BACKUP_DIR":
+			// Đảm bảo đường dẫn hợp lệ cho hệ điều hành hiện tại
+			// Chỉ chuyển đổi sang tuyệt đối nếu không bắt đầu bằng ./
+			if !strings.HasPrefix(value, "./") && !filepath.IsAbs(value) {
+				absValue, absErr := filepath.Abs(value)
+				if absErr != nil {
+					log.Printf("Warning: Không thể chuyển đổi đường dẫn backup thành đường dẫn tuyệt đối: %v, giữ nguyên đường dẫn gốc", absErr)
+				} else {
+					value = absValue
+					log.Printf("Đã chuyển đổi đường dẫn backup thành đường dẫn tuyệt đối: %s", value)
+				}
+			} else {
+				log.Printf("Giữ nguyên đường dẫn backup: %s", value)
+			}
+
+			// Thêm dấu phân cách ở cuối
+			oldDir := cfg.BackupDir
+			if !strings.HasSuffix(value, string(filepath.Separator)) {
+				value = value + string(filepath.Separator)
+			}
+			cfg.BackupDir = value
+
+			log.Printf("Thay đổi BACKUP_DIR từ '%s' thành '%s'", oldDir, value)
+
+			// Đảm bảo thư mục backup tồn tại
+			cleanPath := filepath.Clean(value)
+			log.Printf("Đang tạo thư mục backup tại: %s", cleanPath)
+			err := os.MkdirAll(cleanPath, 0755)
+			if err != nil {
+				log.Printf("Warning: không thể tạo thư mục backup: %v", err)
+			} else {
+				// Kiểm tra lại xem thư mục đã được tạo chưa
+				if _, statErr := os.Stat(cleanPath); statErr != nil && os.IsNotExist(statErr) {
+					log.Printf("Warning: thư mục được báo là đã tạo nhưng không tồn tại: %s", cleanPath)
+				} else {
+					log.Printf("Đã tạo thư mục backup thành công: %s", cleanPath)
+				}
+			}
+		case "DB_USER":
+			cfg.DBUsername = value
+		case "DB_PASSWORD":
+			cfg.DBPassword = value
+		case "DB_NAME":
+			cfg.DBName = value
+		case "CONTAINER_NAME":
+			log.Printf("Nạp CONTAINER_NAME từ database: %s", value)
 		}
 	}
 
@@ -182,19 +252,56 @@ func (cfg *Config) UpdateConfig(newValues map[string]string) {
 			cfg.GoogleClientID = value
 		case "GOOGLE_CLIENT_SECRET":
 			cfg.GoogleClientSecret = value
-		case "GOOGLE_FOLDER":
+		case "FOLDER_DRIVE":
 			cfg.FolderDrive = value
 		case "BACKUP_DIR":
-			// Đảm bảo BackupDir có dấu / cuối cùng
-			if !strings.HasSuffix(value, "/") {
-				value = value + "/"
+			// Đảm bảo đường dẫn hợp lệ cho hệ điều hành hiện tại
+			// Chỉ chuyển đổi sang tuyệt đối nếu không bắt đầu bằng ./
+			if !strings.HasPrefix(value, "./") && !filepath.IsAbs(value) {
+				absValue, absErr := filepath.Abs(value)
+				if absErr != nil {
+					log.Printf("Warning: Không thể chuyển đổi đường dẫn backup thành đường dẫn tuyệt đối: %v, giữ nguyên đường dẫn gốc", absErr)
+				} else {
+					value = absValue
+					log.Printf("Đã chuyển đổi đường dẫn backup thành đường dẫn tuyệt đối: %s", value)
+				}
+			} else {
+				log.Printf("Giữ nguyên đường dẫn backup: %s", value)
+			}
+
+			// Thêm dấu phân cách ở cuối
+			oldDir := cfg.BackupDir
+			if !strings.HasSuffix(value, string(filepath.Separator)) {
+				value = value + string(filepath.Separator)
 			}
 			cfg.BackupDir = value
+
+			log.Printf("Thay đổi BACKUP_DIR từ '%s' thành '%s'", oldDir, value)
+
 			// Đảm bảo thư mục backup tồn tại
-			err := os.MkdirAll(cfg.BackupDir, 0755)
-			if err != nil {
-				log.Printf("Warning: không thể tạo thư mục backup: %v", err)
+			cleanPath := filepath.Clean(value)
+			log.Printf("Đang tạo thư mục backup tại: %s", cleanPath)
+			mkdirErr := os.MkdirAll(cleanPath, 0755)
+			if mkdirErr != nil {
+				log.Printf("Warning: không thể tạo thư mục backup: %v", mkdirErr)
+			} else {
+				// Kiểm tra lại xem thư mục đã được tạo chưa
+				if _, statErr := os.Stat(cleanPath); statErr != nil && os.IsNotExist(statErr) {
+					log.Printf("Warning: thư mục được báo là đã tạo nhưng không tồn tại: %s", cleanPath)
+				} else {
+					log.Printf("Đã tạo thư mục backup thành công: %s", cleanPath)
+				}
 			}
+		case "DB_USER":
+			cfg.DBUsername = value
+		case "DB_PASSWORD":
+			cfg.DBPassword = value
+		case "DB_NAME":
+			cfg.DBName = value
+		case "CONTAINER_NAME":
+			log.Printf("Cập nhật CONTAINER_NAME: %s", value)
+		case "CRON_SCHEDULE":
+			log.Printf("Cập nhật CRON_SCHEDULE: %s", value)
 		}
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/backup-cronjob/internal/auth"
 	"github.com/backup-cronjob/internal/config"
@@ -105,23 +106,58 @@ func findLatestBackup(backupDir string) string {
 		latestMTime int64
 	)
 
+	// Kiểm tra và xử lý đường dẫn backup
+	if strings.HasPrefix(backupDir, "./") {
+		// Đường dẫn tương đối so với thư mục hiện tại, giữ nguyên
+		fmt.Printf("Sử dụng đường dẫn tương đối: %s\n", backupDir)
+	} else if !filepath.IsAbs(backupDir) {
+		// Đường dẫn tương đối không bắt đầu bằng './', chuyển thành tuyệt đối
+		absPath, err := filepath.Abs(backupDir)
+		if err != nil {
+			fmt.Printf("Warning: Không thể chuyển đổi đường dẫn tương đối thành tuyệt đối: %v\n", err)
+		} else {
+			fmt.Printf("Đã chuyển đổi đường dẫn từ '%s' thành '%s'\n", backupDir, absPath)
+			backupDir = absPath
+		}
+	} else {
+		fmt.Printf("Sử dụng đường dẫn tuyệt đối: %s\n", backupDir)
+	}
+
+	// Đảm bảo đường dẫn là đường dẫn hợp lệ và tồn tại
+	backupDir = filepath.Clean(backupDir)
+	fmt.Printf("Đường dẫn sau khi làm sạch: %s\n", backupDir)
+
+	if _, err := os.Stat(backupDir); os.IsNotExist(err) {
+		fmt.Printf("Thư mục backup không tồn tại: %s\n", backupDir)
+		return ""
+	}
+
+	fmt.Printf("Đang tìm backup mới nhất trong thư mục: %s\n", backupDir)
+
 	// Duyệt qua tất cả thư mục ngày
 	dateDirs, err := os.ReadDir(backupDir)
 	if err != nil {
+		fmt.Printf("Lỗi khi đọc thư mục backup: %v\n", err)
 		return ""
 	}
 
 	for _, dateDir := range dateDirs {
 		if dateDir.IsDir() {
 			datePath := filepath.Join(backupDir, dateDir.Name())
+			fmt.Printf("Kiểm tra thư mục ngày: %s\n", datePath)
+
 			files, err := filepath.Glob(filepath.Join(datePath, "*.sql"))
 			if err != nil {
+				fmt.Printf("Lỗi khi tìm file SQL trong thư mục %s: %v\n", datePath, err)
 				continue
 			}
+
+			fmt.Printf("Tìm thấy %d file SQL trong thư mục %s\n", len(files), datePath)
 
 			for _, file := range files {
 				info, err := os.Stat(file)
 				if err != nil {
+					fmt.Printf("Lỗi khi đọc thông tin file %s: %v\n", file, err)
 					continue
 				}
 
@@ -129,9 +165,16 @@ func findLatestBackup(backupDir string) string {
 				if modTime > latestMTime {
 					latestMTime = modTime
 					latestFile = file
+					fmt.Printf("Đã tìm thấy file mới hơn: %s (mtime: %d)\n", file, modTime)
 				}
 			}
 		}
+	}
+
+	if latestFile != "" {
+		fmt.Printf("File backup mới nhất: %s\n", latestFile)
+	} else {
+		fmt.Println("Không tìm thấy file backup nào")
 	}
 
 	return latestFile
@@ -145,6 +188,21 @@ func startWebApp(cfg *config.Config, port string) {
 	// Tạo handler
 	h := handlers.NewHandler(cfg)
 
+	// Cấu hình CORS
+	router.Use(func(c *gin.Context) {
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE")
+
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(204)
+			return
+		}
+
+		c.Next()
+	})
+
 	// Cấu hình static files
 	router.Static("/static", "./ui/static")
 
@@ -156,6 +214,15 @@ func startWebApp(cfg *config.Config, port string) {
 	router.GET("/auth", h.AuthHandler)
 	router.GET("/callback", h.AuthCallbackHandler)
 
+	// Thêm các route API có tiền tố /api
+	router.POST("/api/login", h.LoginHandler)
+	router.POST("/api/logout", h.LogoutHandler)
+	router.GET("/api/auth", h.AuthHandler)
+	router.GET("/api/auth/google/login", h.AuthHandler)
+	router.GET("/api/auth/url", h.GetAuthURLHandler)
+	router.POST("/api/auth/exchange", h.ExchangeAuthCodeHandler)
+	router.GET("/api/callback", h.AuthCallbackHandler)
+
 	// API routes - Các route cần xác thực
 	protected := router.Group("/api")
 	protected.Use(auth.AuthMiddleware())
@@ -165,6 +232,7 @@ func startWebApp(cfg *config.Config, port string) {
 		protected.GET("/configs", h.GetConfigsHandler)
 		protected.POST("/configs", h.UpdateConfigsHandler)
 		protected.GET("/configs/:group", h.GetConfigsByGroupHandler)
+		protected.GET("/drive/status", h.CheckDriveStatusHandler)
 	}
 
 	// Action routes - Các hành động cần xác thực

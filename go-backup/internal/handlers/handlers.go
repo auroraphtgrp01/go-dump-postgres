@@ -6,7 +6,9 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/backup-cronjob/internal/auth"
 	"github.com/backup-cronjob/internal/backupdb"
@@ -209,102 +211,227 @@ func (h *Handler) AuthCallbackHandler(c *gin.Context) {
 
 	log.Printf("✅ Đã lấy token thành công. Token hết hạn vào: %v", token.Expiry)
 
-	// Trả về thông tin token
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "Xác thực Google Drive thành công!",
-		"token_info": map[string]string{
-			"expires_at": token.Expiry.Format("02/01/2006 15:04:05"),
-		},
-	})
+	// Thay vì trả về JSON, trả về HTML với script tự đóng cửa sổ
+	htmlResponse := `
+	<!DOCTYPE html>
+	<html>
+	<head>
+		<title>Xác thực thành công</title>
+		<style>
+			body {
+				font-family: Arial, sans-serif;
+				text-align: center;
+				margin-top: 50px;
+				background-color: #f0f2f5;
+			}
+			.container {
+				background-color: white;
+				border-radius: 8px;
+				box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+				padding: 30px;
+				max-width: 500px;
+				margin: 0 auto;
+			}
+			.success-icon {
+				color: #52c41a;
+				font-size: 48px;
+				margin-bottom: 20px;
+			}
+			h2 {
+				color: #333;
+				margin-bottom: 15px;
+			}
+			p {
+				color: #666;
+				margin-bottom: 20px;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="container">
+			<div class="success-icon">✓</div>
+			<h2>Xác thực Google Drive thành công!</h2>
+			<p>Token sẽ hết hạn vào: ` + token.Expiry.Format("02/01/2006 15:04:05") + `</p>
+			<p>Bạn có thể đóng cửa sổ này và quay lại ứng dụng.</p>
+		</div>
+		<script>
+			// Tự động đóng cửa sổ sau 3 giây
+			setTimeout(function() {
+				window.close();
+			}, 3000);
+		</script>
+	</body>
+	</html>
+	`
+
+	c.Header("Content-Type", "text/html; charset=utf-8")
+	c.String(http.StatusOK, htmlResponse)
 }
 
 // DumpHandler xử lý yêu cầu dump database
 func (h *Handler) DumpHandler(c *gin.Context) {
-	// Kiểm tra các phương thức xác thực
-	cookieValue, _ := c.Cookie("logged_in")
-	authToken, _ := c.Cookie("auth_token")
-	authHeader := c.GetHeader("Authorization")
-
-	// Nếu không có bất kỳ phương thức xác thực nào
-	if cookieValue != "true" && authToken == "" && authHeader == "" {
-		c.Redirect(http.StatusSeeOther, "/?success=false&message=Vui lòng đăng nhập để thực hiện thao tác này")
-		return
-	}
-
 	// Thực hiện dump database
 	result, err := h.DatabaseDumper.DumpDatabase()
 	if err != nil {
-		c.Redirect(http.StatusSeeOther, "/?success=false&message="+fmt.Sprintf("Lỗi khi dump database: %v", err))
+		log.Printf("Lỗi khi dump database: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": fmt.Sprintf("Lỗi khi dump database: %v", err),
+		})
 		return
 	}
 
-	c.Redirect(http.StatusSeeOther, "/?success=true&message="+fmt.Sprintf("Đã dump database thành công. File: %s", filepath.Base(result.FilePath)))
+	// Trả về kết quả thành công
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": fmt.Sprintf("Đã dump database thành công. File: %s", filepath.Base(result.FilePath)),
+		"result": gin.H{
+			"filePath": result.FilePath,
+			"fileName": filepath.Base(result.FilePath),
+			"fileSize": result.FileSize,
+		},
+	})
 }
 
 // UploadLastHandler xử lý yêu cầu upload file mới nhất
 func (h *Handler) UploadLastHandler(c *gin.Context) {
-	// Kiểm tra các phương thức xác thực
-	cookieValue, _ := c.Cookie("logged_in")
-	authToken, _ := c.Cookie("auth_token")
-	authHeader := c.GetHeader("Authorization")
-
-	// Nếu không có bất kỳ phương thức xác thực nào
-	if cookieValue != "true" && authToken == "" && authHeader == "" {
-		c.Redirect(http.StatusSeeOther, "/?success=false&message=Vui lòng đăng nhập để thực hiện thao tác này")
-		return
-	}
-
 	// Kiểm tra xác thực Google Drive
 	if !h.DriveUploader.CheckAuth() {
-		c.Redirect(http.StatusSeeOther, "/auth")
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success":  false,
+			"message":  "Chưa xác thực với Google Drive. Vui lòng thực hiện xác thực trước.",
+			"redirect": "/auth",
+		})
 		return
 	}
 
-	// Tìm file backup mới nhất
+	// Kiểm tra vấn đề cấu hình
+	configIssues := h.DriveUploader.CheckDriveConfig()
+	if len(configIssues) > 0 {
+		errorMessages := []string{}
+		for key, issue := range configIssues {
+			errorMessages = append(errorMessages, fmt.Sprintf("%s: %s", key, issue))
+		}
+		errorMsg := fmt.Sprintf("Có vấn đề với cấu hình Google Drive: %s", strings.Join(errorMessages, "; "))
+
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": errorMsg,
+			"issues":  configIssues,
+		})
+		return
+	}
+
+	// Tìm file mới nhất
 	latestBackup, err := backupdb.FindLatestBackup()
-	if err != nil {
-		c.Redirect(http.StatusSeeOther, "/?success=false&message="+fmt.Sprintf("Không tìm thấy file backup: %v", err))
+	if err != nil || latestBackup == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Không tìm thấy file backup mới nhất",
+		})
 		return
 	}
 
-	// Upload file lên Drive
+	// Kiểm tra file có tồn tại không
+	if _, err := os.Stat(latestBackup.Path); os.IsNotExist(err) {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": fmt.Sprintf("File không tồn tại: %s", latestBackup.Path),
+		})
+		return
+	}
+
+	// Upload file
 	result := h.DriveUploader.UploadFile(latestBackup.Path)
 	if !result.Success {
-		c.Redirect(http.StatusSeeOther, "/?success=false&message="+fmt.Sprintf("Lỗi khi upload file: %v", result.Message))
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": fmt.Sprintf("Lỗi khi upload file: %s", result.Message),
+		})
 		return
 	}
 
-	c.Redirect(http.StatusSeeOther, "/?success=true&message="+fmt.Sprintf("Đã upload file %s lên Google Drive", latestBackup.Name))
+	// Cập nhật trạng thái đã upload
+	backupID, err := strconv.ParseInt(latestBackup.ID, 10, 64)
+	if err != nil {
+		log.Printf("Cảnh báo: Không thể chuyển đổi ID backup: %v", err)
+	} else {
+		if err := database.UpdateBackupUploadStatus(backupID, true); err != nil {
+			log.Printf("Cảnh báo: Không thể cập nhật trạng thái upload: %v", err)
+		} else {
+			log.Printf("Đã cập nhật trạng thái upload thành công cho file ID: %d", backupID)
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": fmt.Sprintf("Đã upload file %s thành công", latestBackup.Name),
+		"result": gin.H{
+			"fileId":   result.FileID,
+			"fileName": latestBackup.Name,
+			"webLink":  result.WebLink,
+		},
+	})
 }
 
 // UploadAllHandler xử lý yêu cầu upload tất cả file
 func (h *Handler) UploadAllHandler(c *gin.Context) {
-	// Kiểm tra các phương thức xác thực
-	cookieValue, _ := c.Cookie("logged_in")
-	authToken, _ := c.Cookie("auth_token")
-	authHeader := c.GetHeader("Authorization")
-
-	// Nếu không có bất kỳ phương thức xác thực nào
-	if cookieValue != "true" && authToken == "" && authHeader == "" {
-		c.Redirect(http.StatusSeeOther, "/?success=false&message=Vui lòng đăng nhập để thực hiện thao tác này")
-		return
-	}
-
 	// Kiểm tra xác thực Google Drive
 	if !h.DriveUploader.CheckAuth() {
-		c.Redirect(http.StatusSeeOther, "/auth")
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success":  false,
+			"message":  "Chưa xác thực với Google Drive. Vui lòng thực hiện xác thực trước.",
+			"redirect": "/auth",
+		})
 		return
 	}
 
-	// Upload tất cả file backup
+	// Kiểm tra vấn đề cấu hình
+	configIssues := h.DriveUploader.CheckDriveConfig()
+	if len(configIssues) > 0 {
+		errorMessages := []string{}
+		for key, issue := range configIssues {
+			errorMessages = append(errorMessages, fmt.Sprintf("%s: %s", key, issue))
+		}
+		errorMsg := fmt.Sprintf("Có vấn đề với cấu hình Google Drive: %s", strings.Join(errorMessages, "; "))
+
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": errorMsg,
+			"issues":  configIssues,
+		})
+		return
+	}
+
+	// Upload tất cả file
 	err := h.DriveUploader.UploadAllBackups()
 	if err != nil {
-		c.Redirect(http.StatusSeeOther, "/?success=false&message="+fmt.Sprintf("Lỗi khi upload tất cả file: %v", err))
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": fmt.Sprintf("Lỗi khi upload tất cả file: %v", err),
+		})
 		return
 	}
 
-	c.Redirect(http.StatusSeeOther, "/?success=true&message=Đã upload tất cả file backup lên Google Drive")
+	// Lấy thông tin các file đã upload
+	backups, err := backupdb.GetAllBackups()
+	if err != nil {
+		log.Printf("Cảnh báo: Không thể lấy thông tin backups: %v", err)
+	}
+
+	// Đếm số file đã upload thành công
+	successCount := 0
+	for _, backup := range backups {
+		if backup.Uploaded {
+			successCount++
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": fmt.Sprintf("Đã upload các file thành công (%d file)", successCount),
+		"results": backups,
+	})
 }
 
 // UploadSingleHandler xử lý yêu cầu upload một file cụ thể
@@ -316,20 +443,47 @@ func (h *Handler) UploadSingleHandler(c *gin.Context) {
 
 	// Nếu không có bất kỳ phương thức xác thực nào
 	if cookieValue != "true" && authToken == "" && authHeader == "" {
-		c.Redirect(http.StatusSeeOther, "/?success=false&message=Vui lòng đăng nhập để thực hiện thao tác này")
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"success": false,
+			"message": "Vui lòng đăng nhập để thực hiện thao tác này",
+		})
 		return
 	}
 
 	// Kiểm tra xác thực Google Drive
 	if !h.DriveUploader.CheckAuth() {
-		c.Redirect(http.StatusSeeOther, "/auth")
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success":  false,
+			"message":  "Chưa xác thực với Google Drive. Vui lòng thực hiện xác thực trước.",
+			"redirect": "/auth",
+		})
+		return
+	}
+
+	// Kiểm tra vấn đề cấu hình
+	configIssues := h.DriveUploader.CheckDriveConfig()
+	if len(configIssues) > 0 {
+		errorMessages := []string{}
+		for key, issue := range configIssues {
+			errorMessages = append(errorMessages, fmt.Sprintf("%s: %s", key, issue))
+		}
+		errorMsg := fmt.Sprintf("Có vấn đề với cấu hình Google Drive: %s", strings.Join(errorMessages, "; "))
+
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": errorMsg,
+			"issues":  configIssues,
+		})
 		return
 	}
 
 	fileID := c.Param("id")
 	backups, err := backupdb.GetAllBackups()
 	if err != nil {
-		c.Redirect(http.StatusSeeOther, "/?success=false&message="+fmt.Sprintf("Không thể lấy danh sách backup: %v", err))
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": fmt.Sprintf("Không thể lấy danh sách backup: %v", err),
+		})
 		return
 	}
 
@@ -343,18 +497,53 @@ func (h *Handler) UploadSingleHandler(c *gin.Context) {
 	}
 
 	if targetBackup == nil {
-		c.Redirect(http.StatusSeeOther, "/?success=false&message="+fmt.Sprintf("Không tìm thấy file backup có ID: %s", fileID))
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"message": fmt.Sprintf("Không tìm thấy file backup có ID: %s", fileID),
+		})
+		return
+	}
+
+	// Kiểm tra file có tồn tại không
+	if _, err := os.Stat(targetBackup.Path); os.IsNotExist(err) {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": fmt.Sprintf("File không tồn tại trên hệ thống: %s", targetBackup.Path),
+		})
 		return
 	}
 
 	// Upload file lên Drive
 	result := h.DriveUploader.UploadFile(targetBackup.Path)
 	if !result.Success {
-		c.Redirect(http.StatusSeeOther, "/?success=false&message="+fmt.Sprintf("Lỗi khi upload file: %v", result.Message))
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": fmt.Sprintf("Lỗi khi upload file: %v", result.Message),
+		})
 		return
 	}
 
-	c.Redirect(http.StatusSeeOther, "/?success=true&message="+fmt.Sprintf("Đã upload file %s lên Google Drive", targetBackup.Name))
+	// Cập nhật trạng thái đã upload
+	backupID, err := strconv.ParseInt(targetBackup.ID, 10, 64)
+	if err != nil {
+		log.Printf("Cảnh báo: Không thể chuyển đổi ID backup: %v", err)
+	} else {
+		if err := database.UpdateBackupUploadStatus(backupID, true); err != nil {
+			log.Printf("Cảnh báo: Không thể cập nhật trạng thái upload: %v", err)
+		} else {
+			log.Printf("Đã cập nhật trạng thái upload thành công cho file ID: %d", backupID)
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": fmt.Sprintf("Đã upload file %s lên Google Drive", targetBackup.Name),
+		"result": gin.H{
+			"fileId":   result.FileID,
+			"fileName": targetBackup.Name,
+			"webLink":  result.WebLink,
+		},
+	})
 }
 
 // DownloadHandler xử lý yêu cầu tải xuống file backup
@@ -425,5 +614,128 @@ func (h *Handler) GetBackupsHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"backups": backups,
+	})
+}
+
+// CheckDriveStatusHandler xử lý kiểm tra trạng thái và cấu hình Google Drive
+func (h *Handler) CheckDriveStatusHandler(c *gin.Context) {
+	// Kiểm tra và thu thập thông tin về Google Drive
+	isAuthenticated := h.DriveUploader.CheckAuth()
+	configIssues := h.DriveUploader.CheckDriveConfig()
+
+	// Kiểm tra thông tin cấu hình
+	clientIDStatus := "OK"
+	clientSecretStatus := "OK"
+	tokenStatus := "OK"
+	folderStatus := "OK"
+
+	if issue, exists := configIssues["GoogleClientID"]; exists {
+		clientIDStatus = issue
+	}
+
+	if issue, exists := configIssues["GoogleClientSecret"]; exists {
+		clientSecretStatus = issue
+	}
+
+	if issue, exists := configIssues["AuthToken"]; exists {
+		tokenStatus = issue
+	}
+
+	if issue, exists := configIssues["FolderDrive"]; exists {
+		folderStatus = issue
+	}
+
+	// Kiểm tra token info
+	var tokenInfo map[string]interface{}
+	tokenFile := filepath.Join(h.Config.TokenDir, "token.json")
+	if _, err := os.Stat(tokenFile); err == nil {
+		token, err := h.DriveUploader.TokenFromFile(tokenFile)
+		if err == nil {
+			tokenInfo = map[string]interface{}{
+				"expires_at":        token.Expiry.Format("02/01/2006 15:04:05"),
+				"has_refresh_token": token.RefreshToken != "",
+				"expired":           token.Expiry.Before(time.Now()),
+			}
+		}
+	}
+
+	// Trả về tất cả thông tin
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"drive_status": map[string]interface{}{
+			"is_authenticated":     isAuthenticated,
+			"has_issues":           len(configIssues) > 0,
+			"config_issues":        configIssues,
+			"client_id_status":     clientIDStatus,
+			"client_secret_status": clientSecretStatus,
+			"token_status":         tokenStatus,
+			"folder_status":        folderStatus,
+			"token_info":           tokenInfo,
+		},
+	})
+}
+
+// GetAuthURLHandler trả về URL xác thực Google Drive
+func (h *Handler) GetAuthURLHandler(c *gin.Context) {
+	// Tạo URL xác thực
+	authURL := h.DriveUploader.GetAuthURL()
+	log.Printf("URL xác thực Google Drive: %s\n", authURL)
+
+	// Trả về URL xác thực
+	c.JSON(http.StatusOK, gin.H{
+		"success":  true,
+		"auth_url": authURL,
+	})
+}
+
+// ExchangeAuthCodeHandler nhận mã xác thực và đổi lấy token
+func (h *Handler) ExchangeAuthCodeHandler(c *gin.Context) {
+	// Lấy mã xác thực từ request body
+	var request struct {
+		Code string `json:"code" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&request); err != nil {
+		log.Printf("❌ Lỗi khi đọc mã xác thực: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Không nhận được mã xác thực. Vui lòng thử lại.",
+		})
+		return
+	}
+
+	// Kiểm tra mã xác thực có trống không
+	if request.Code == "" {
+		log.Printf("❌ Mã xác thực trống")
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Mã xác thực không được để trống. Vui lòng thử lại.",
+		})
+		return
+	}
+
+	log.Printf("✅ Đã nhận mã xác thực từ Google, độ dài: %d", len(request.Code))
+
+	// Đổi mã xác thực lấy token
+	log.Printf("Bắt đầu đổi mã xác thực lấy token...")
+	token, err := h.DriveUploader.ExchangeAuthCode(request.Code)
+	if err != nil {
+		log.Printf("❌ Lỗi khi đổi mã xác thực: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   fmt.Sprintf("Lỗi xác thực: %v", err),
+		})
+		return
+	}
+
+	log.Printf("✅ Đã lấy token thành công. Token hết hạn vào: %v", token.Expiry)
+
+	// Trả về thông tin token
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Xác thực Google Drive thành công!",
+		"token_info": map[string]string{
+			"expires_at": token.Expiry.Format("02/01/2006 15:04:05"),
+		},
 	})
 }

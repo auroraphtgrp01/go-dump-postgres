@@ -42,6 +42,15 @@ func (d *DriveUploader) Init() error {
 		return fmt.Errorf("không thể khởi tạo Google Drive Uploader: thiếu Client Secret của Google")
 	}
 
+	// Kiểm tra giá trị mặc định hoặc không hợp lệ
+	if d.Config.GoogleClientID == "123" || len(d.Config.GoogleClientID) < 20 {
+		return fmt.Errorf("Google Client ID không hợp lệ hoặc là giá trị mặc định. Vui lòng cập nhật Client ID của Google")
+	}
+
+	if d.Config.GoogleClientSecret == "123" || len(d.Config.GoogleClientSecret) < 10 {
+		return fmt.Errorf("Google Client Secret không hợp lệ hoặc là giá trị mặc định. Vui lòng cập nhật Client Secret của Google")
+	}
+
 	client, err := d.getClient()
 	if err != nil {
 		return fmt.Errorf("lỗi khi khởi tạo Google Client: %v", err)
@@ -233,6 +242,11 @@ func (d *DriveUploader) tokenFromFile(file string) (*oauth2.Token, error) {
 	return token, err
 }
 
+// TokenFromFile là phiên bản công khai của tokenFromFile
+func (d *DriveUploader) TokenFromFile(file string) (*oauth2.Token, error) {
+	return d.tokenFromFile(file)
+}
+
 // getTokenFromWeb yêu cầu người dùng xác thực qua trình duyệt
 func (d *DriveUploader) getTokenFromWeb(config *oauth2.Config) (*oauth2.Token, error) {
 	// Tạo URL xác thực
@@ -349,9 +363,84 @@ func (d *DriveUploader) checkFileExists(fileName string, folderID string) (*driv
 	return nil, nil
 }
 
+// CheckDriveConfig kiểm tra tất cả cấu hình Drive và báo cáo các vấn đề
+func (d *DriveUploader) CheckDriveConfig() map[string]string {
+	issues := make(map[string]string)
+
+	// Kiểm tra Client ID
+	if d.Config.GoogleClientID == "" {
+		issues["GoogleClientID"] = "Thiếu Google Client ID"
+	} else if d.Config.GoogleClientID == "123" || len(d.Config.GoogleClientID) < 20 {
+		issues["GoogleClientID"] = "Google Client ID không hợp lệ hoặc là giá trị mặc định"
+	}
+
+	// Kiểm tra Client Secret
+	if d.Config.GoogleClientSecret == "" {
+		issues["GoogleClientSecret"] = "Thiếu Google Client Secret"
+	} else if d.Config.GoogleClientSecret == "123" || len(d.Config.GoogleClientSecret) < 10 {
+		issues["GoogleClientSecret"] = "Google Client Secret không hợp lệ hoặc là giá trị mặc định"
+	}
+
+	// Kiểm tra token dir
+	if d.Config.TokenDir == "" {
+		issues["TokenDir"] = "Thiếu đường dẫn thư mục token"
+	} else {
+		if _, err := os.Stat(d.Config.TokenDir); os.IsNotExist(err) {
+			if err := os.MkdirAll(d.Config.TokenDir, 0755); err != nil {
+				issues["TokenDir"] = fmt.Sprintf("Không thể tạo thư mục token: %v", err)
+			}
+		}
+	}
+
+	// Kiểm tra tên thư mục Drive
+	if d.Config.FolderDrive == "" {
+		issues["FolderDrive"] = "Thiếu tên thư mục trên Google Drive"
+	}
+
+	// Kiểm tra xác thực
+	tokenFile := filepath.Join(d.Config.TokenDir, "token.json")
+	if _, err := os.Stat(tokenFile); os.IsNotExist(err) {
+		issues["AuthToken"] = "Chưa xác thực với Google Drive, cần thực hiện xác thực"
+	} else {
+		token, err := d.tokenFromFile(tokenFile)
+		if err != nil {
+			issues["AuthToken"] = fmt.Sprintf("Lỗi đọc token xác thực: %v", err)
+		} else if token.Expiry.Before(time.Now()) {
+			if token.RefreshToken == "" {
+				issues["AuthToken"] = "Token đã hết hạn và không có refresh token, cần xác thực lại"
+			} else {
+				// Thử refresh token
+				config := d.GetOAuthConfig()
+				tokenSource := config.TokenSource(context.Background(), token)
+				_, err := tokenSource.Token()
+				if err != nil {
+					issues["AuthToken"] = fmt.Sprintf("Không thể làm mới token: %v", err)
+				}
+			}
+		}
+	}
+
+	return issues
+}
+
 // UploadFile uploads a file to Google Drive and returns the result
 func (d *DriveUploader) UploadFile(filePath string) UploadResult {
 	fmt.Printf("Bắt đầu upload file: %s\n", filePath)
+
+	// Kiểm tra các vấn đề cấu hình
+	configIssues := d.CheckDriveConfig()
+	if len(configIssues) > 0 {
+		errorMessages := []string{}
+		for key, issue := range configIssues {
+			errorMessages = append(errorMessages, fmt.Sprintf("%s: %s", key, issue))
+		}
+		errorMsg := fmt.Sprintf("Có vấn đề với cấu hình Google Drive: %s", strings.Join(errorMessages, "; "))
+		fmt.Println(errorMsg)
+		return UploadResult{
+			Success: false,
+			Message: errorMsg,
+		}
+	}
 
 	// Kiểm tra service đã khởi tạo chưa
 	if d.service == nil {
@@ -525,10 +614,25 @@ func (d *DriveUploader) createFolderIfNotExist(folderName string) (string, error
 
 // UploadAllBackups tải lên tất cả các file backup
 func (d *DriveUploader) UploadAllBackups() error {
+	// Kiểm tra các vấn đề cấu hình
+	configIssues := d.CheckDriveConfig()
+	if len(configIssues) > 0 {
+		errorMessages := []string{}
+		for key, issue := range configIssues {
+			errorMessages = append(errorMessages, fmt.Sprintf("%s: %s", key, issue))
+		}
+		return fmt.Errorf("Có vấn đề với cấu hình Google Drive: %s", strings.Join(errorMessages, "; "))
+	}
+
 	// Lấy danh sách các file backup
 	backups, err := backupdb.GetAllBackups()
 	if err != nil {
 		return fmt.Errorf("không thể lấy danh sách backup: %w", err)
+	}
+
+	// Kiểm tra nếu không có backups
+	if len(backups) == 0 {
+		return fmt.Errorf("không có file backup nào để upload")
 	}
 
 	// Khởi tạo drive service nếu chưa được khởi tạo
@@ -547,12 +651,16 @@ func (d *DriveUploader) UploadAllBackups() error {
 
 	// Tạo map để theo dõi các thư mục ngày đã tạo
 	dateFolders := make(map[string]string)
+	successCount := 0
+	failCount := 0
+	skippedCount := 0
 
 	// Upload từng file backup từ database
 	for _, backup := range backups {
 		// Bỏ qua những file đã được upload
 		if backup.Uploaded {
 			fmt.Printf("File %s đã được upload trước đó, bỏ qua\n", backup.Name)
+			skippedCount++
 			continue
 		}
 
@@ -560,6 +668,7 @@ func (d *DriveUploader) UploadAllBackups() error {
 		_, err := os.Stat(backup.Path)
 		if os.IsNotExist(err) {
 			fmt.Printf("File %s không còn tồn tại trên filesystem, bỏ qua\n", backup.Path)
+			skippedCount++
 			continue
 		}
 
@@ -573,6 +682,7 @@ func (d *DriveUploader) UploadAllBackups() error {
 			dateFolderID, err = d.createOrFindFolder(dateFolder, rootFolderID)
 			if err != nil {
 				fmt.Printf("Không thể tạo folder ngày %s: %v\n", dateFolder, err)
+				failCount++
 				continue
 			}
 			dateFolders[dateFolder] = dateFolderID
@@ -582,6 +692,7 @@ func (d *DriveUploader) UploadAllBackups() error {
 		existingFile, err := d.checkFileExists(backup.Name, dateFolderID)
 		if err != nil {
 			fmt.Printf("Không thể kiểm tra file %s: %v\n", backup.Name, err)
+			failCount++
 			continue
 		}
 
@@ -595,6 +706,7 @@ func (d *DriveUploader) UploadAllBackups() error {
 				fmt.Printf("Không thể cập nhật trạng thái file %s: %v\n", backup.Name, err)
 			}
 
+			skippedCount++
 			continue
 		}
 
@@ -602,6 +714,7 @@ func (d *DriveUploader) UploadAllBackups() error {
 		content, err := os.Open(backup.Path)
 		if err != nil {
 			fmt.Printf("Không thể mở file %s: %v\n", backup.Path, err)
+			failCount++
 			continue
 		}
 
@@ -611,19 +724,40 @@ func (d *DriveUploader) UploadAllBackups() error {
 			Parents: []string{dateFolderID},
 		}
 
-		// Upload file
-		file, err := d.service.Files.Create(fileMetadata).
-			Media(content).
-			Fields("id").
-			Do()
+		// Upload file với retry
+		var file *drive.File
+		maxRetries := 3
+		for attempt := 1; attempt <= maxRetries; attempt++ {
+			// Upload file
+			file, err = d.service.Files.Create(fileMetadata).
+				Media(content).
+				Fields("id").
+				Do()
+
+			if err == nil {
+				break // Thành công, thoát khỏi vòng lặp
+			}
+
+			// Lỗi, thử lại nếu còn lượt
+			if attempt < maxRetries {
+				fmt.Printf("Lỗi khi upload file %s (lần thử %d/%d): %v. Đang thử lại...\n",
+					backup.Name, attempt, maxRetries, err)
+				time.Sleep(time.Second * 2) // Đợi 2 giây trước khi thử lại
+
+				// Đặt lại vị trí đọc file
+				content.Seek(0, 0)
+			}
+		}
 		content.Close()
 
 		if err != nil {
-			fmt.Printf("Không thể upload file %s: %v\n", backup.Name, err)
+			fmt.Printf("Không thể upload file %s sau %d lần thử: %v\n", backup.Name, maxRetries, err)
+			failCount++
 			continue
 		}
 
 		fmt.Printf("Đã upload file %s (ID: %s)\n", backup.Name, file.Id)
+		successCount++
 
 		// Cập nhật trạng thái trong database
 		var backupID int64
@@ -631,6 +765,17 @@ func (d *DriveUploader) UploadAllBackups() error {
 		if err := backupdb.UpdateBackupUploadStatus(backupID, true); err != nil {
 			fmt.Printf("Không thể cập nhật trạng thái file %s: %v\n", backup.Name, err)
 		}
+	}
+
+	// Trả về thông tin tổng kết
+	if failCount > 0 {
+		return fmt.Errorf("upload không hoàn toàn thành công: %d thành công, %d thất bại, %d bỏ qua",
+			successCount, failCount, skippedCount)
+	}
+
+	if successCount == 0 && skippedCount > 0 {
+		return fmt.Errorf("không có file nào được upload: %d file đã bỏ qua vì đã upload trước đó hoặc không tồn tại",
+			skippedCount)
 	}
 
 	return nil

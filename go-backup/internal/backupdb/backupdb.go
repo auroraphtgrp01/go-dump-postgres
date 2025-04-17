@@ -99,9 +99,13 @@ func GetAllBackups() ([]*models.BackupFile, error) {
 		// Chuyển đổi thời gian
 		t, err := time.Parse("2006-01-02 15:04:05", createdAt)
 		if err != nil {
-			// Nếu không parse được thời gian, dùng thời gian hiện tại
-			t = time.Now()
-			fmt.Printf("Không thể parse thời gian '%s' cho file %s: %v\n", createdAt, filename, err)
+			// Thử parse với định dạng ISO 8601
+			t, err = time.Parse(time.RFC3339, createdAt)
+			if err != nil {
+				// Nếu không parse được thời gian, dùng thời gian hiện tại
+				t = time.Now()
+				fmt.Printf("Không thể parse thời gian '%s' cho file %s: %v\n", createdAt, filename, err)
+			}
 		}
 
 		// Kiểm tra nếu file tồn tại trên hệ thống
@@ -123,7 +127,16 @@ func GetAllBackups() ([]*models.BackupFile, error) {
 		// Thêm thông tin thời gian upload nếu có
 		if uploaded && uploadedAt.Valid {
 			uploadTime, err := time.Parse("2006-01-02 15:04:05", uploadedAt.String)
-			if err == nil {
+			if err != nil {
+				// Thử parse với định dạng ISO 8601
+				uploadTime, err = time.Parse(time.RFC3339, uploadedAt.String)
+				if err != nil {
+					// Bỏ qua nếu không parse được
+					fmt.Printf("Không thể parse thời gian upload '%s' cho file %s: %v\n", uploadedAt.String, filename, err)
+				} else {
+					backup.UploadedAt = &uploadTime
+				}
+			} else {
 				backup.UploadedAt = &uploadTime
 			}
 		}
