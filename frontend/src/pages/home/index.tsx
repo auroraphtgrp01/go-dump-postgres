@@ -339,6 +339,7 @@ const HomePage = () => {
 
               <Button
                 className="w-full justify-start"
+                variant={'outline'}
                 onClick={handleCreateBackup}
                 disabled={isCreatingBackup || !selectedProfileId || loadingProfiles}
               >
@@ -471,7 +472,7 @@ const HomePage = () => {
                               </Button>
                               {!file.uploaded && (
                                 <Button
-                                  variant={isUploading === file.id ? "default" : "ghost"}
+                                  variant={isUploading === file.id ? "outline" : "ghost"}
                                   size="sm"
                                   className={`h-8 ${isUploading === file.id ? 'w-auto px-2' : 'w-8 p-0'}`}
                                   onClick={(e) => {

@@ -78,14 +78,9 @@ const Navbar = () => {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
-                <div className="px-2 py-1.5 text-sm font-medium">
+                <div className="px-2 py-1.5 text-sm font-medium text-center">
                   {username}
                 </div>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => navigateTo('/settings')}>
-                  <Settings className="mr-2 h-4 w-4" />
-                  <span>Cấu hình</span>
-                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="cursor-pointer text-red-500 focus:text-red-500" onClick={handleLogout}>
                   <LogOut className="mr-2 h-4 w-4" />

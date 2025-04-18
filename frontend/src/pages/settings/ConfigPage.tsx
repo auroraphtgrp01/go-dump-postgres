@@ -980,6 +980,7 @@ const ConfigPage = () => {
                     </Button>
                     <Button 
                       type="submit" 
+                      variant={'outline'}
                       disabled={isLoading}
                     >
                       {isLoading ? (
