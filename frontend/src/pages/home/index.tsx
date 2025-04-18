@@ -6,12 +6,12 @@ import { isAuthenticated, syncAuthState } from "@/utils/auth";
 import Toast from "@/components/Toast";
 import { IOperationResult, IBackupFile } from "@/types";
 import { formatFileSize } from "@/utils/helpers";
-import { 
-  Database, 
-  CloudUpload, 
-  RefreshCw, 
-  Trash2, 
-  Download, 
+import {
+  Database,
+  CloudUpload,
+  RefreshCw,
+  Trash2,
+  Download,
   ExternalLink,
   FileArchive,
   CheckCircle2,
@@ -19,7 +19,6 @@ import {
   AlertCircle,
   Plus,
   RotateCw,
-  Users
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
@@ -52,29 +51,29 @@ const HomePage = () => {
         navigate('/auth/login');
         return;
       }
-      
+
       setIsLoading(true);
       const isAuth = await syncAuthState();
       setNeedAuth(!isAuth);
-      
+
       // Tải danh sách backup và profiles
       fetchBackupFiles();
       fetchProfiles();
     };
-    
+
     checkAuth();
-    
+
     // Kiểm tra thông báo từ URL
     const urlParams = new URLSearchParams(window.location.search);
     const success = urlParams.get('success');
     const message = urlParams.get('message');
-    
+
     if (success !== null && message) {
       setLastOperation({
         success: success === 'true',
         message: decodeURIComponent(message)
       });
-      
+
       // Clean up URL
       window.history.replaceState({}, document.title, window.location.pathname);
     }
@@ -96,7 +95,7 @@ const HomePage = () => {
         if (data.success) {
           const fetchedProfiles = data.profiles || [];
           setProfiles(fetchedProfiles);
-          
+
           // Tìm profile active và set làm mặc định, nếu không có thì chọn cái đầu tiên
           const activeProfile = fetchedProfiles.find((p: Profile) => p.is_active);
           if (activeProfile) {
@@ -156,7 +155,7 @@ const HomePage = () => {
       Toast.error('Vui lòng chọn profile database để tạo backup.');
       return;
     }
-    
+
     setIsCreatingBackup(true);
     try {
       const token = localStorage.getItem('auth_token');
@@ -193,7 +192,7 @@ const HomePage = () => {
     setIsUploading(id);
     // Hiển thị thông báo đang bắt đầu upload
     Toast.info(`Đang upload file lên Google Drive...`);
-    
+
     try {
       const token = localStorage.getItem('auth_token');
       const response = await fetch(`/upload/${id}`, {
@@ -271,9 +270,9 @@ const HomePage = () => {
             <p className="text-sm mt-1">
               Bạn cần xác thực với Google Drive để có thể lưu trữ các bản sao lưu trên đám mây.
             </p>
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               className="mt-2 bg-white dark:bg-transparent"
               onClick={() => navigate('/google-auth')}
             >
@@ -285,11 +284,10 @@ const HomePage = () => {
 
       {/* Thông báo kết quả thao tác */}
       {lastOperation && (
-        <div className={`mb-6 ${
-          lastOperation.success 
-            ? 'bg-green-50 border-green-200 text-green-800 dark:bg-green-900/30 dark:border-green-800 dark:text-green-300' 
-            : 'bg-red-50 border-red-200 text-red-800 dark:bg-red-900/30 dark:border-red-800 dark:text-red-300'
-        } px-4 py-3 rounded-lg flex items-start border`}>
+        <div className={`mb-6 ${lastOperation.success
+          ? 'bg-green-50 border-green-200 text-green-800 dark:bg-green-900/30 dark:border-green-800 dark:text-green-300'
+          : 'bg-red-50 border-red-200 text-red-800 dark:bg-red-900/30 dark:border-red-800 dark:text-red-300'
+          } px-4 py-3 rounded-lg flex items-start border`}>
           {lastOperation.success ? (
             <CheckCircle2 className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0" />
           ) : (
@@ -318,8 +316,8 @@ const HomePage = () => {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="profileSelect">Chọn Profile Database</Label>
-                <Select 
-                  value={selectedProfileId || undefined} 
+                <Select
+                  value={selectedProfileId || undefined}
                   onValueChange={setSelectedProfileId}
                   disabled={loadingProfiles}
                 >
@@ -339,8 +337,8 @@ const HomePage = () => {
                 </Select>
               </div>
 
-              <Button 
-                className="w-full justify-start" 
+              <Button
+                className="w-full justify-start"
                 onClick={handleCreateBackup}
                 disabled={isCreatingBackup || !selectedProfileId || loadingProfiles}
               >
@@ -356,43 +354,6 @@ const HomePage = () => {
                   </>
                 )}
               </Button>
-
-              <Button 
-                variant="outline" 
-                className="w-full justify-start" 
-                onClick={fetchBackupFiles}
-                disabled={isLoading}
-              >
-                <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-                Làm mới danh sách
-              </Button>
-
-              <Button
-                variant="outline"
-                className="w-full justify-start"
-                onClick={() => navigate('/settings')}
-              >
-                <Database className="h-4 w-4 mr-2" />
-                Cấu hình hệ thống
-              </Button>
-              
-              <Button
-                variant="outline"
-                className="w-full justify-start"
-                onClick={() => navigate('/profiles')}
-              >
-                <Users className="h-4 w-4 mr-2" />
-                Quản lý Profiles
-              </Button>
-
-              <Button
-                variant={needAuth ? "default" : "outline"} 
-                className="w-full justify-start"
-                onClick={() => navigate('/google-auth')}
-              >
-                <CloudUpload className="h-4 w-4 mr-2" />
-                {needAuth ? 'Xác thực Google Drive' : 'Kiểm tra xác thực'}
-              </Button>
             </CardContent>
           </Card>
         </div>
@@ -405,9 +366,9 @@ const HomePage = () => {
                 <FileArchive className="h-5 w-5 mr-2 text-primary" />
                 Danh sách Backup
               </CardTitle>
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={fetchBackupFiles}
                 disabled={isLoading}
                 className="h-8"
@@ -447,9 +408,9 @@ const HomePage = () => {
                     </thead>
                     <tbody>
                       {backupFiles.map((file) => (
-                        <tr 
-                          key={file.id} 
-                          className="border-b border-border hover:bg-muted/50 transition-colors" 
+                        <tr
+                          key={file.id}
+                          className="border-b border-border hover:bg-muted/50 transition-colors"
                           onClick={(e) => e.preventDefault()}
                         >
                           <td className="py-3 px-4 text-left">
@@ -485,9 +446,9 @@ const HomePage = () => {
                           <td className="py-3 px-4 text-right">
                             <div className="flex items-center justify-end space-x-2">
                               {file.uploaded && file.driveLink && (
-                                <a 
-                                  href={file.driveLink} 
-                                  target="_blank" 
+                                <a
+                                  href={file.driveLink}
+                                  target="_blank"
                                   rel="noopener noreferrer"
                                   title="Xem trên Google Drive"
                                   className="flex items-center justify-center h-8 w-8 p-0 rounded-md hover:bg-muted"
@@ -496,9 +457,9 @@ const HomePage = () => {
                                   <ExternalLink className="h-4 w-4" />
                                 </a>
                               )}
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
+                              <Button
+                                variant="ghost"
+                                size="sm"
                                 className="h-8 w-8 p-0"
                                 title="Tải xuống"
                                 onClick={(e) => {
@@ -509,9 +470,9 @@ const HomePage = () => {
                                 <Download className="h-4 w-4" />
                               </Button>
                               {!file.uploaded && (
-                                <Button 
+                                <Button
                                   variant={isUploading === file.id ? "default" : "ghost"}
-                                  size="sm" 
+                                  size="sm"
                                   className={`h-8 ${isUploading === file.id ? 'w-auto px-2' : 'w-8 p-0'}`}
                                   onClick={(e) => {
                                     e.stopPropagation();
@@ -530,9 +491,9 @@ const HomePage = () => {
                                   )}
                                 </Button>
                               )}
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
+                              <Button
+                                variant="ghost"
+                                size="sm"
                                 className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30"
                                 onClick={(e) => {
                                   e.stopPropagation();

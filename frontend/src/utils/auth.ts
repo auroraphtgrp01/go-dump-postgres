@@ -117,12 +117,6 @@ export const logout = async (): Promise<void> => {
     localStorage.removeItem('auth_token');
     localStorage.removeItem('user');
     
-    // Đợi một chút để hiển thị thông báo thành công
-    setTimeout(() => {
-      // Redirect to login page
-      window.location.href = '/login';
-    }, 1000);
-    
   } catch (error) {
     console.error('Error during logout:', error);
     Toast.error('Có lỗi xảy ra khi đăng xuất');
