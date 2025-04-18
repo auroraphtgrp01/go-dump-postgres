@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { isAuthenticated, getUser, logout } from "@/utils/auth";
 import { Menu, User, LogOut, Database, Settings, LayoutDashboard } from "lucide-react";
+import { ModeToggle } from "@/components/mode-toggle";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -21,7 +22,7 @@ const Navbar = () => {
     const checkAuth = () => {
       const auth = isAuthenticated();
       setIsLoggedIn(auth);
-      
+
       if (auth) {
         const user = getUser();
         if (user) {
@@ -67,6 +68,8 @@ const Navbar = () => {
         </nav>
 
         <div className="flex items-center gap-4">
+          <ModeToggle />
+
           {isLoggedIn ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -150,6 +153,10 @@ const Navbar = () => {
                 <span>Đăng nhập</span>
               </Link>
             )}
+
+            <div className="pt-2">
+              <ModeToggle />
+            </div>
           </nav>
         </div>
       )}
