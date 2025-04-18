@@ -18,8 +18,18 @@ import {
   XCircle,
   AlertCircle,
   Plus,
-  RotateCw
+  RotateCw,
+  Users
 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+
+// Interface cho Profile
+interface Profile {
+  id: string;
+  name: string;
+  is_active: boolean;
+}
 
 const HomePage = () => {
   const [needAuth, setNeedAuth] = useState(true);
@@ -29,12 +39,15 @@ const HomePage = () => {
   const [isCreatingBackup, setIsCreatingBackup] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  // Thêm state cho profiles và selected ID
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
+  const [loadingProfiles, setLoadingProfiles] = useState(false);
   const navigate = useNavigate();
 
-  // Kiểm tra xác thực và tải danh sách backup
+  // Kiểm tra xác thực và tải danh sách backup + profiles
   useEffect(() => {
     const checkAuth = async () => {
-      // Kiểm tra xác thực và chuyển hướng nếu chưa đăng nhập
       if (!isAuthenticated()) {
         navigate('/auth/login');
         return;
@@ -44,8 +57,9 @@ const HomePage = () => {
       const isAuth = await syncAuthState();
       setNeedAuth(!isAuth);
       
-      // Tải danh sách backup
+      // Tải danh sách backup và profiles
       fetchBackupFiles();
+      fetchProfiles();
     };
     
     checkAuth();
@@ -65,6 +79,44 @@ const HomePage = () => {
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, [navigate]);
+
+  // Thêm hàm fetchProfiles
+  const fetchProfiles = async () => {
+    setLoadingProfiles(true);
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch('/api/profiles', {
+        headers: {
+          'Authorization': 'Bearer ' + token
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          const fetchedProfiles = data.profiles || [];
+          setProfiles(fetchedProfiles);
+          
+          // Tìm profile active và set làm mặc định, nếu không có thì chọn cái đầu tiên
+          const activeProfile = fetchedProfiles.find((p: Profile) => p.is_active);
+          if (activeProfile) {
+            setSelectedProfileId(activeProfile.id);
+          } else if (fetchedProfiles.length > 0) {
+            setSelectedProfileId(fetchedProfiles[0].id);
+          }
+        } else {
+          Toast.error(data.message || 'Không thể tải danh sách profile');
+        }
+      } else {
+        Toast.error('Không thể tải danh sách profile');
+      }
+    } catch (error) {
+      console.error('Error fetching profiles:', error);
+      Toast.error('Lỗi kết nối máy chủ khi tải profiles');
+    } finally {
+      setLoadingProfiles(false);
+    }
+  };
 
   // Tải danh sách backup files
   const fetchBackupFiles = async () => {
@@ -98,12 +150,17 @@ const HomePage = () => {
     }
   };
 
-  // Tạo backup mới
+  // Cập nhật Tạo backup mới để dùng profile_id
   const handleCreateBackup = async () => {
+    if (!selectedProfileId) {
+      Toast.error('Vui lòng chọn profile database để tạo backup.');
+      return;
+    }
+    
     setIsCreatingBackup(true);
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`/dump`, {
+      const response = await fetch(`/dump?profile_id=${selectedProfileId}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -256,10 +313,33 @@ const HomePage = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="profileSelect">Chọn Profile Database</Label>
+                <Select 
+                  value={selectedProfileId || undefined} 
+                  onValueChange={setSelectedProfileId}
+                  disabled={loadingProfiles}
+                >
+                  <SelectTrigger id="profileSelect" className="w-full">
+                    <SelectValue placeholder={loadingProfiles ? "Đang tải..." : "Chọn profile"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {profiles.length === 0 && !loadingProfiles && (
+                      <SelectItem value="no-profiles" disabled>Chưa có profile nào</SelectItem>
+                    )}
+                    {profiles.map(profile => (
+                      <SelectItem key={profile.id} value={profile.id}>
+                        {profile.name} {profile.is_active ? "(Đang hoạt động)" : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <Button 
                 className="w-full justify-start" 
                 onClick={handleCreateBackup}
-                disabled={isCreatingBackup}
+                disabled={isCreatingBackup || !selectedProfileId || loadingProfiles}
               >
                 {isCreatingBackup ? (
                   <>
@@ -290,7 +370,16 @@ const HomePage = () => {
                 onClick={() => navigate('/settings')}
               >
                 <Database className="h-4 w-4 mr-2" />
-                Cấu hình PostgreSQL
+                Cấu hình hệ thống
+              </Button>
+              
+              <Button
+                variant="outline"
+                className="w-full justify-start"
+                onClick={() => navigate('/profiles')}
+              >
+                <Users className="h-4 w-4 mr-2" />
+                Quản lý Profiles
               </Button>
 
               <Button
