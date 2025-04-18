@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { isAuthenticated } from '@/utils/auth';
 import Toast from '@/components/Toast';
 import { ArrowLeft, Check, Loader2 } from 'lucide-react';
+import axios from 'axios';
 
 const GoogleAuthPage = () => {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -12,6 +13,55 @@ const GoogleAuthPage = () => {
   const [message, setMessage] = useState('');
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const [authPopup, setAuthPopup] = useState<Window | null>(null);
+  const checkIntervalRef = useRef<number | null>(null);
+
+  // Hàm dọn dẹp interval
+  const clearCheckInterval = () => {
+    if (checkIntervalRef.current !== null) {
+      window.clearInterval(checkIntervalRef.current);
+      checkIntervalRef.current = null;
+    }
+  };
+
+  // Thêm hàm kiểm tra trạng thái xác thực
+  const verifyAuthStatus = async () => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await axios.get('/api/drive/status', {
+        headers: {
+          'Authorization': 'Bearer ' + token
+        }
+      });
+      
+      console.log('Kiểm tra trạng thái xác thực Google Drive:', response.data);
+      
+      // Kiểm tra trạng thái xác thực từ phản hồi API
+      const isAuthenticated = response.data.drive_status?.is_authenticated || false;
+      
+      if (isAuthenticated) {
+        // Đánh dấu xác thực thành công
+        setAuthSuccess(true);
+        setMessage('Xác thực Google Drive thành công!');
+        Toast.success('Xác thực Google Drive thành công');
+        
+        // Chuyển về trang chủ sau 3 giây
+        setTimeout(() => {
+          navigate('/');
+        }, 3000);
+      } else {
+        // Xác thực thất bại
+        setAuthSuccess(false);
+        setMessage('Không thể xác nhận trạng thái xác thực Google Drive.');
+        Toast.error('Không thể xác nhận trạng thái xác thực');
+      }
+    } catch (error) {
+      console.error('Lỗi khi kiểm tra trạng thái xác thực:', error);
+      setAuthSuccess(false);
+      setMessage('Lỗi kết nối máy chủ khi kiểm tra trạng thái');
+      Toast.error('Lỗi kết nối máy chủ');
+    }
+  };
 
   useEffect(() => {
     // Kiểm tra xác thực
@@ -25,7 +75,51 @@ const GoogleAuthPage = () => {
     if (code) {
       handleAuthCode(code);
     }
+    
+    // Thêm event listener để lắng nghe message từ popup
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data && event.data.type === 'GOOGLE_AUTH_SUCCESS') {
+        console.log('Nhận thông báo xác thực Google thành công:', event.data);
+        
+        // Dọn dẹp interval kiểm tra
+        clearCheckInterval();
+        
+        // Kiểm tra trạng thái xác thực thực tế từ API
+        verifyAuthStatus();
+      }
+    };
+    
+    window.addEventListener('message', handleMessage);
+    
+    // Cleanup event listener khi component unmount
+    return () => {
+      window.removeEventListener('message', handleMessage);
+      clearCheckInterval();
+    };
   }, [navigate, searchParams]);
+  
+  // Thiết lập interval kiểm tra khi popup đang mở
+  useEffect(() => {
+    // Nếu có cửa sổ popup và không có interval kiểm tra
+    if (authPopup && checkIntervalRef.current === null) {
+      // Thiết lập interval để kiểm tra trạng thái xác thực định kỳ
+      const intervalId = window.setInterval(() => {
+        // Kiểm tra xem cửa sổ đã đóng chưa
+        if (authPopup.closed) {
+          console.log('Cửa sổ xác thực đã đóng, kiểm tra trạng thái xác thực');
+          clearCheckInterval();
+          verifyAuthStatus();
+        }
+      }, 1000);
+      
+      checkIntervalRef.current = intervalId;
+    }
+    
+    // Cleanup interval khi component unmount hoặc khi authPopup thay đổi
+    return () => {
+      clearCheckInterval();
+    };
+  }, [authPopup]);
 
   const handleAuthCode = async (code: string) => {
     setIsProcessing(true);
@@ -76,7 +170,22 @@ const GoogleAuthPage = () => {
       const data = await response.json();
       
       if (data.success && data.auth_url) {
-        window.location.href = data.auth_url;
+        // Thay vì chuyển trang, mở popup
+        const popup = window.open(
+          data.auth_url,
+          'Google Auth',
+          'width=600,height=700,menubar=no,toolbar=no,location=no'
+        );
+        
+        setAuthPopup(popup);
+        
+        if (!popup) {
+          // Nếu popup bị chặn, chuyển hướng thay thế
+          Toast.error('Popup bị chặn. Vui lòng cho phép popup và thử lại');
+          setMessage('Popup bị chặn. Vui lòng cho phép popup và thử lại');
+          setAuthSuccess(false);
+          setIsProcessing(false);
+        }
       } else {
         setAuthSuccess(false);
         setMessage(data.message || 'Không thể lấy URL xác thực');

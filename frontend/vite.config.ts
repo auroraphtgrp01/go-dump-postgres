@@ -90,6 +90,11 @@ export default defineConfig({
         changeOrigin: true,
         secure: false
       },
+      '/delete-backup': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        secure: false
+      },
       '/dump': {
         target: 'http://localhost:8080',
         changeOrigin: true,

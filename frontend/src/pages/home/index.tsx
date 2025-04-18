@@ -37,7 +37,7 @@ const HomePage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [lastOperation, setLastOperation] = useState<IOperationResult | null>(null);
   const [isCreatingBackup, setIsCreatingBackup] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
+  const [isUploading, setIsUploading] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   // Thêm state cho profiles và selected ID
   const [profiles, setProfiles] = useState<Profile[]>([]);
@@ -190,10 +190,13 @@ const HomePage = () => {
       return;
     }
 
-    setIsUploading(true);
+    setIsUploading(id);
+    // Hiển thị thông báo đang bắt đầu upload
+    Toast.info(`Đang upload file lên Google Drive...`);
+    
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`/api/backup/${id}/upload`, {
+      const response = await fetch(`/upload/${id}`, {
         method: 'POST',
         headers: {
           'Authorization': 'Bearer ' + token
@@ -211,7 +214,7 @@ const HomePage = () => {
       console.error('Error uploading to Drive:', error);
       Toast.error('Lỗi kết nối máy chủ');
     } finally {
-      setIsUploading(false);
+      setIsUploading(null);
     }
   };
 
@@ -224,7 +227,7 @@ const HomePage = () => {
     setIsDeleting(id);
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`/delete-backup/${id}`, {
+      const response = await fetch(`/api/backups/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': 'Bearer ' + token
@@ -467,6 +470,11 @@ const HomePage = () => {
                                 <CheckCircle2 className="h-3 w-3 mr-1" />
                                 Đã upload
                               </div>
+                            ) : isUploading === file.id ? (
+                              <div className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 rounded text-xs">
+                                <RotateCw className="h-3 w-3 mr-1 animate-spin" />
+                                Đang upload...
+                              </div>
                             ) : (
                               <div className="inline-flex items-center px-2 py-1 bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 rounded text-xs">
                                 <AlertCircle className="h-3 w-3 mr-1" />
@@ -502,17 +510,24 @@ const HomePage = () => {
                               </Button>
                               {!file.uploaded && (
                                 <Button 
-                                  variant="ghost" 
+                                  variant={isUploading === file.id ? "default" : "ghost"}
                                   size="sm" 
-                                  className="h-8 w-8 p-0"
+                                  className={`h-8 ${isUploading === file.id ? 'w-auto px-2' : 'w-8 p-0'}`}
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     handleUploadToDrive(file.id);
                                   }}
-                                  disabled={isUploading || needAuth}
+                                  disabled={isUploading !== null || needAuth}
                                   title="Upload lên Google Drive"
                                 >
-                                  <CloudUpload className="h-4 w-4" />
+                                  {isUploading === file.id ? (
+                                    <>
+                                      <RotateCw className="h-4 w-4 mr-1 animate-spin" />
+                                      <span className="text-xs">Uploading...</span>
+                                    </>
+                                  ) : (
+                                    <CloudUpload className="h-4 w-4" />
+                                  )}
                                 </Button>
                               )}
                               <Button 

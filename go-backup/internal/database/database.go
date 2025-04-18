@@ -445,3 +445,13 @@ func UpdateBackupUploadStatus(id int64, uploaded bool, driveLink string) error {
 
 	return nil
 }
+
+// DeleteBackup xóa bản ghi backup từ database
+func DeleteBackup(id int64) error {
+	_, err := DB.Exec("DELETE FROM backups WHERE id = ?", id)
+	if err != nil {
+		return fmt.Errorf("lỗi khi xóa bản ghi backup: %w", err)
+	}
+
+	return nil
+}

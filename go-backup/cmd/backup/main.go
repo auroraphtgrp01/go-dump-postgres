@@ -229,6 +229,7 @@ func startWebApp(cfg *config.Config, port string) {
 	{
 		protected.GET("/me", h.MeHandler)
 		protected.GET("/backups", h.GetBackupsHandler)
+		protected.DELETE("/backups/:id", h.DeleteBackupHandler)
 		protected.GET("/configs", h.GetConfigsHandler)
 		protected.POST("/configs", h.UpdateConfigsHandler)
 		protected.GET("/configs/:group", h.GetConfigsByGroupHandler)

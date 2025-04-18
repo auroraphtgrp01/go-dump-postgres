@@ -58,7 +58,7 @@ export const BackupService = {
   },
 
   deleteBackup: (id: string): Promise<AxiosResponse<ApiResponse<any>>> => {
-    return axios.delete(`/delete-backup/${id}`);
+    return axios.delete(`/api/backups/${id}`);
   },
 
   uploadToDrive: (id: string): Promise<AxiosResponse<ApiResponse<any>>> => {

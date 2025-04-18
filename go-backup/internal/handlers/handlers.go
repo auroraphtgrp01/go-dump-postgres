@@ -255,6 +255,11 @@ func (h *Handler) AuthCallbackHandler(c *gin.Context) {
 			<p>Bạn có thể đóng cửa sổ này và quay lại ứng dụng.</p>
 		</div>
 		<script>
+			// Thông báo cho cửa sổ chính rằng xác thực đã hoàn tất
+			if (window.opener && !window.opener.closed) {
+				window.opener.postMessage({ type: 'GOOGLE_AUTH_SUCCESS', success: true }, "*");
+			}
+			
 			// Tự động đóng cửa sổ sau 3 giây
 			setTimeout(function() {
 				window.close();
@@ -781,5 +786,77 @@ func (h *Handler) ExchangeAuthCodeHandler(c *gin.Context) {
 		"token_info": map[string]string{
 			"expires_at": token.Expiry.Format("02/01/2006 15:04:05"),
 		},
+	})
+}
+
+// DeleteBackupHandler xử lý yêu cầu xóa file backup
+func (h *Handler) DeleteBackupHandler(c *gin.Context) {
+	fileID := c.Param("id")
+	if fileID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "ID của file backup không được để trống",
+		})
+		return
+	}
+
+	// Chuyển đổi ID từ string sang int64
+	backupID, err := strconv.ParseInt(fileID, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": fmt.Sprintf("ID không hợp lệ: %v", err),
+		})
+		return
+	}
+
+	// Lấy thông tin backup trước khi xóa
+	backups, err := backupdb.GetAllBackups()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": fmt.Sprintf("Không thể lấy thông tin backup: %v", err),
+		})
+		return
+	}
+
+	// Tìm file backup theo ID
+	var targetBackup *models.BackupFile
+	for _, backup := range backups {
+		if backup.ID == fileID {
+			targetBackup = backup
+			break
+		}
+	}
+
+	if targetBackup == nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"message": fmt.Sprintf("Không tìm thấy file backup có ID: %s", fileID),
+		})
+		return
+	}
+
+	// Xóa file backup từ hệ thống file nếu tồn tại
+	if targetBackup.FileExists {
+		if err := os.Remove(targetBackup.Path); err != nil {
+			log.Printf("Lỗi khi xóa file backup %s: %v", targetBackup.Path, err)
+			// Tiếp tục xóa bản ghi trong database ngay cả khi không thể xóa file
+		}
+	}
+
+	// Xóa bản ghi từ database
+	if err := database.DeleteBackup(backupID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": fmt.Sprintf("Lỗi khi xóa bản ghi backup: %v", err),
+		})
+		return
+	}
+
+	// Trả về kết quả thành công
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": fmt.Sprintf("Đã xóa backup %s thành công", targetBackup.Name),
 	})
 }
