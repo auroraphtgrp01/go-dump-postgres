@@ -59,7 +59,7 @@ func main() {
 	if *dumpOnly || (!*uploadLast && !*uploadAll && !*webMode) {
 		// Nếu chỉ có flag dump hoặc không có flag nào, thực hiện dump
 		fmt.Println("Đang thực hiện dump database...")
-		result, err := dumper.DumpDatabase()
+		result, err := dumper.DumpDatabase(0) // Sử dụng profile đang hoạt động
 		if err != nil {
 			log.Fatalf("Lỗi khi dump database: %v", err)
 		}
@@ -233,6 +233,15 @@ func startWebApp(cfg *config.Config, port string) {
 		protected.POST("/configs", h.UpdateConfigsHandler)
 		protected.GET("/configs/:group", h.GetConfigsByGroupHandler)
 		protected.GET("/drive/status", h.CheckDriveStatusHandler)
+
+		// Quản lý profile database
+		protected.GET("/profiles", h.GetProfilesHandler)
+		protected.GET("/profiles/active", h.GetActiveProfileHandler)
+		protected.GET("/profiles/:id", h.GetProfileHandler)
+		protected.POST("/profiles", h.CreateProfileHandler)
+		protected.PUT("/profiles/:id", h.UpdateProfileHandler)
+		protected.DELETE("/profiles/:id", h.DeleteProfileHandler)
+		protected.POST("/profiles/:id/activate", h.SetActiveProfileHandler)
 	}
 
 	// Action routes - Các hành động cần xác thực

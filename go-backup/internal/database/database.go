@@ -55,6 +55,11 @@ func InitDB(cfg *config.Config) error {
 		return fmt.Errorf("error ensuring default configs exist: %w", err)
 	}
 
+	// Đảm bảo có ít nhất một profile mặc định
+	if err = EnsureDefaultProfile(); err != nil {
+		return fmt.Errorf("error ensuring default profile: %w", err)
+	}
+
 	log.Println("Database initialized successfully")
 	return nil
 }
@@ -105,6 +110,26 @@ func createSchema() error {
 			drive_link TEXT
 		)
 	`)
+	if err != nil {
+		return err
+	}
+
+	// Tạo bảng profiles
+	_, err = DB.Exec(`
+		CREATE TABLE IF NOT EXISTS profiles (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			name TEXT NOT NULL UNIQUE,
+			description TEXT,
+			db_user TEXT NOT NULL,
+			db_password TEXT NOT NULL,
+			container_name TEXT NOT NULL,
+			db_name TEXT NOT NULL,
+			is_active BOOLEAN DEFAULT 1,
+			created_at DATETIME NOT NULL,
+			updated_at DATETIME NOT NULL
+		)
+	`)
+
 	return err
 }
 

@@ -13,6 +13,7 @@ import (
 	"github.com/backup-cronjob/internal/backupdb"
 	"github.com/backup-cronjob/internal/config"
 	"github.com/backup-cronjob/internal/database"
+	"github.com/backup-cronjob/internal/models"
 )
 
 // DumpResult chứa thông tin kết quả dump
@@ -36,7 +37,7 @@ func NewDatabaseDumper(cfg *config.Config) *DatabaseDumper {
 }
 
 // DumpDatabase thực hiện việc dump database từ container Docker
-func (d *DatabaseDumper) DumpDatabase() (*DumpResult, error) {
+func (d *DatabaseDumper) DumpDatabase(profileId int64) (*DumpResult, error) {
 	// Tạo đối tượng result mặc định
 	result := &DumpResult{
 		Success: false,
@@ -51,58 +52,91 @@ func (d *DatabaseDumper) DumpDatabase() (*DumpResult, error) {
 		return result, fmt.Errorf(errMsg)
 	}
 
-	// Kiểm tra thông tin cấu hình database từ database/config hoặc từ file .env
-	var dbConfigErrors []string
+	// Lấy thông tin profile từ database
+	var profile models.DatabaseProfile
+	var err error
 
-	// Kiểm tra DB_USER
-	dbUser, err := database.GetConfigValue("DB_USER")
-	if err != nil || dbUser == "" {
-		dbUser = d.Config.DBUsername
-		if dbUser == "" {
-			errMsg := "Thiếu thông tin tên người dùng database (DB_USER)"
-			dbConfigErrors = append(dbConfigErrors, errMsg)
+	if profileId > 0 {
+		// Lấy profile theo ID
+		profile, err = database.GetProfile(profileId)
+		if err != nil {
+			errMsg := fmt.Sprintf("Không thể tìm thấy profile với ID=%d: %v", profileId, err)
+			log.Printf(errMsg)
+			result.Message = errMsg
+			return result, fmt.Errorf(errMsg)
 		}
-	}
-	log.Printf("DB_USER: %s", dbUser)
-
-	// Kiểm tra DB_PASSWORD
-	dbPassword, err := database.GetConfigValue("DB_PASSWORD")
-	if err != nil || dbPassword == "" {
-		dbPassword = d.Config.DBPassword
-		if dbPassword == "" {
-			errMsg := "Thiếu thông tin mật khẩu database (DB_PASSWORD)"
-			dbConfigErrors = append(dbConfigErrors, errMsg)
-		}
-	}
-	log.Printf("DB_PASSWORD: ***********")
-
-	// Kiểm tra DB_NAME
-	dbName, err := database.GetConfigValue("DB_NAME")
-	if err != nil || dbName == "" {
-		dbName = d.Config.DBName
-		if dbName == "" {
-			errMsg := "Thiếu thông tin tên database (DB_NAME)"
-			dbConfigErrors = append(dbConfigErrors, errMsg)
-		}
-	}
-	log.Printf("DB_NAME: %s", dbName)
-
-	// Kiểm tra CONTAINER_NAME
-	containerName, err := database.GetConfigValue("CONTAINER_NAME")
-	if err != nil || containerName == "" {
-		errMsg := "Thiếu thông tin tên container (CONTAINER_NAME)"
-		dbConfigErrors = append(dbConfigErrors, errMsg)
 	} else {
-		log.Printf("CONTAINER_NAME: %s", containerName)
+		// Lấy profile đang hoạt động
+		profile, err = database.GetActiveProfile()
+		if err != nil {
+			// Thử lấy thông tin cấu hình từ database/config hoặc từ file .env
+			var dbConfigErrors []string
+
+			// Kiểm tra DB_USER
+			dbUser, err := database.GetConfigValue("DB_USER")
+			if err != nil || dbUser == "" {
+				dbUser = d.Config.DBUsername
+				if dbUser == "" {
+					errMsg := "Thiếu thông tin tên người dùng database (DB_USER)"
+					dbConfigErrors = append(dbConfigErrors, errMsg)
+				}
+			}
+
+			// Kiểm tra DB_PASSWORD
+			dbPassword, err := database.GetConfigValue("DB_PASSWORD")
+			if err != nil || dbPassword == "" {
+				dbPassword = d.Config.DBPassword
+				if dbPassword == "" {
+					errMsg := "Thiếu thông tin mật khẩu database (DB_PASSWORD)"
+					dbConfigErrors = append(dbConfigErrors, errMsg)
+				}
+			}
+
+			// Kiểm tra DB_NAME
+			dbName, err := database.GetConfigValue("DB_NAME")
+			if err != nil || dbName == "" {
+				dbName = d.Config.DBName
+				if dbName == "" {
+					errMsg := "Thiếu thông tin tên database (DB_NAME)"
+					dbConfigErrors = append(dbConfigErrors, errMsg)
+				}
+			}
+
+			// Kiểm tra CONTAINER_NAME
+			containerName, err := database.GetConfigValue("CONTAINER_NAME")
+			if err != nil || containerName == "" {
+				errMsg := "Thiếu thông tin tên container (CONTAINER_NAME)"
+				dbConfigErrors = append(dbConfigErrors, errMsg)
+			}
+
+			// Nếu có lỗi cấu hình, trả về ngay
+			if len(dbConfigErrors) > 0 {
+				errMsg := fmt.Sprintf("Không thể dump database: %s", strings.Join(dbConfigErrors, "; "))
+				log.Printf(errMsg)
+				result.Message = errMsg
+				return result, fmt.Errorf(errMsg)
+			}
+
+			// Tạo profile tạm thời từ cấu hình hiện tại
+			now := time.Now()
+			profile = models.DatabaseProfile{
+				Name:          "Temporary",
+				Description:   "Tạm thời từ cấu hình có sẵn",
+				DBUser:        dbUser,
+				DBPassword:    dbPassword,
+				ContainerName: containerName,
+				DBName:        dbName,
+				IsActive:      true,
+				CreatedAt:     now,
+				UpdatedAt:     now,
+			}
+		}
 	}
 
-	// Nếu có lỗi cấu hình, trả về ngay
-	if len(dbConfigErrors) > 0 {
-		errMsg := fmt.Sprintf("Không thể dump database: %s", strings.Join(dbConfigErrors, "; "))
-		log.Printf(errMsg)
-		result.Message = errMsg
-		return result, fmt.Errorf(errMsg)
-	}
+	// Ghi thông tin dump
+	log.Printf("Thực hiện dump với profile: %s", profile.Name)
+	log.Printf("Thông tin kết nối: DBUser=%s, DBName=%s, ContainerName=%s",
+		profile.DBUser, profile.DBName, profile.ContainerName)
 
 	// Tạo thư mục backup theo ngày
 	now := time.Now()
@@ -130,7 +164,7 @@ func (d *DatabaseDumper) DumpDatabase() (*DumpResult, error) {
 	log.Printf("Đã tạo thư mục backup theo ngày: %s", backupDir)
 
 	// Tạo tên file output
-	outputFile := filepath.Join(backupDir, fmt.Sprintf("%s_%s_data.sql", dbName, timestamp))
+	outputFile := filepath.Join(backupDir, fmt.Sprintf("%s_%s_data.sql", profile.DBName, timestamp))
 	log.Printf("Tên file output: %s", outputFile)
 
 	// Kiểm tra Docker có sẵn không
@@ -145,22 +179,22 @@ func (d *DatabaseDumper) DumpDatabase() (*DumpResult, error) {
 	log.Printf("Docker có sẵn: %s", strings.TrimSpace(string(dockerOut)))
 
 	// Kiểm tra container có tồn tại không
-	containerCheck := exec.Command("docker", "container", "inspect", containerName)
+	containerCheck := exec.Command("docker", "container", "inspect", profile.ContainerName)
 	containerOut, containerErr := containerCheck.CombinedOutput()
 	if containerErr != nil {
 		errMsg := fmt.Sprintf("Container '%s' không tồn tại hoặc không thể truy cập: %v\nOutput: %s",
-			containerName, containerErr, string(containerOut))
+			profile.ContainerName, containerErr, string(containerOut))
 		log.Printf(errMsg)
 		result.Message = errMsg
 		return result, fmt.Errorf(errMsg)
 	}
-	log.Printf("Container '%s' tồn tại và có thể truy cập", containerName)
+	log.Printf("Container '%s' tồn tại và có thể truy cập", profile.ContainerName)
 
 	// Kiểm tra container có chạy PostgreSQL không
 	// Thực hiện kiểm tra cơ bản xem container có postgres hay không
 	pgVersionCmd := exec.Command(
 		"docker", "exec",
-		containerName,
+		profile.ContainerName,
 		"sh", "-c", "command -v psql && psql --version || echo 'PostgreSQL not found'",
 	)
 	pgVersionOut, pgVersionErr := pgVersionCmd.CombinedOutput()
@@ -177,12 +211,12 @@ func (d *DatabaseDumper) DumpDatabase() (*DumpResult, error) {
 
 	cmd := exec.Command(
 		"docker", "exec",
-		"-e", fmt.Sprintf("PGPASSWORD=%s", dbPassword),
-		containerName,
+		"-e", fmt.Sprintf("PGPASSWORD=%s", profile.DBPassword),
+		profile.ContainerName,
 		"pg_dump",
 		"-v",
-		"-d", dbName,
-		"-U", dbUser,
+		"-d", profile.DBName,
+		"-U", profile.DBUser,
 		"--inserts",
 		"--no-owner",
 		"--no-privileges",
@@ -192,7 +226,7 @@ func (d *DatabaseDumper) DumpDatabase() (*DumpResult, error) {
 	)
 
 	log.Printf("Lệnh dump đầy đủ: docker exec -e PGPASSWORD=*** %s pg_dump -v -d %s -U %s --inserts --no-owner --no-privileges --data-only --column-inserts --disable-triggers",
-		containerName, dbName, dbUser)
+		profile.ContainerName, profile.DBName, profile.DBUser)
 
 	// Tạo file output
 	outFile, err := os.Create(outputFile)
@@ -236,54 +270,45 @@ func (d *DatabaseDumper) DumpDatabase() (*DumpResult, error) {
 	stderrOutput := string(stderrBytes)
 
 	// Đợi lệnh hoàn thành
-	if err := cmd.Wait(); err != nil {
-		// Phân tích lỗi để cung cấp thông báo hữu ích hơn
-		log.Printf("Lỗi khi chạy lệnh dump: %v", err)
-		log.Printf("Stderr output: %s", stderrOutput)
-
-		if strings.Contains(stderrOutput, "No such container") {
-			errMsg := fmt.Sprintf("Container '%s' không tồn tại, vui lòng kiểm tra lại tên container", containerName)
-			log.Printf(errMsg)
-			result.Message = errMsg
-			return result, fmt.Errorf(errMsg)
-		} else if strings.Contains(stderrOutput, "authentication failed") {
-			errMsg := "Xác thực database thất bại, vui lòng kiểm tra tên người dùng và mật khẩu"
-			log.Printf(errMsg)
-			result.Message = errMsg
-			return result, fmt.Errorf(errMsg)
-		} else if strings.Contains(stderrOutput, "database") && strings.Contains(stderrOutput, "does not exist") {
-			errMsg := fmt.Sprintf("Database '%s' không tồn tại, vui lòng kiểm tra lại tên database", dbName)
-			log.Printf(errMsg)
-			result.Message = errMsg
-			return result, fmt.Errorf(errMsg)
-		} else if strings.Contains(stderrOutput, "connection refused") || strings.Contains(stderrOutput, "could not connect to server") {
-			errMsg := fmt.Sprintf("Không thể kết nối đến server database, vui lòng kiểm tra lại thông tin kết nối")
+	err = cmd.Wait()
+	if err != nil {
+		// Kiểm tra lỗi PostgreSQL không khả dụng
+		if strings.Contains(stderrOutput, "could not connect to server") {
+			errMsg := fmt.Sprintf("Không thể kết nối đến PostgreSQL server: %v\nOutput: %s", err, stderrOutput)
 			log.Printf(errMsg)
 			result.Message = errMsg
 			return result, fmt.Errorf(errMsg)
 		}
 
-		errMsg := fmt.Sprintf("Lệnh thất bại với mã lỗi: %v", err)
+		// Kiểm tra lỗi truy cập bị từ chối
+		if strings.Contains(stderrOutput, "permission denied") || strings.Contains(stderrOutput, "authentication failed") {
+			errMsg := fmt.Sprintf("Truy cập đến PostgreSQL bị từ chối (sai username/password): %v\nOutput: %s", err, stderrOutput)
+			log.Printf(errMsg)
+			result.Message = errMsg
+			return result, fmt.Errorf(errMsg)
+		}
+
+		// Các lỗi khác
+		errMsg := fmt.Sprintf("Lỗi khi thực hiện dump: %v\nOutput: %s", err, stderrOutput)
 		log.Printf(errMsg)
 		result.Message = errMsg
 		return result, fmt.Errorf(errMsg)
 	}
 
-	if stderrOutput != "" {
-		log.Printf("Thông báo từ stderr: %s", stderrOutput)
-	}
+	log.Printf("Lệnh dump đã hoàn thành thành công")
 
-	// Kiểm tra file có tồn tại không
+	// Kiểm tra file output
 	fileInfo, err := os.Stat(outputFile)
 	if err != nil {
-		errMsg := fmt.Sprintf("File không được tạo tại %s: %v", outputFile, err)
+		errMsg := fmt.Sprintf("Lỗi khi kiểm tra file output: %v", err)
 		log.Printf(errMsg)
 		result.Message = errMsg
 		return result, fmt.Errorf(errMsg)
 	}
 
-	// Kiểm tra kích thước file
 	fileSize := fileInfo.Size()
+	log.Printf("Kích thước file output: %d bytes", fileSize)
+
 	if fileSize == 0 {
 		// Thử dùng lệnh pg_dump đơn giản hơn nếu file có kích thước 0
 		log.Printf("File dump rỗng, thử lại với cách khác...")
@@ -307,15 +332,15 @@ func (d *DatabaseDumper) DumpDatabase() (*DumpResult, error) {
 		// Tạo lệnh dump đơn giản hơn
 		simpleDumpCmd := exec.Command(
 			"docker", "exec",
-			"-e", fmt.Sprintf("PGPASSWORD=%s", dbPassword),
-			containerName,
+			"-e", fmt.Sprintf("PGPASSWORD=%s", profile.DBPassword),
+			profile.ContainerName,
 			"pg_dump",
-			"-U", dbUser,
-			dbName,
+			"-U", profile.DBUser,
+			profile.DBName,
 		)
 
 		log.Printf("Thử lại với lệnh đơn giản hơn: docker exec -e PGPASSWORD=*** %s pg_dump -U %s %s",
-			containerName, dbUser, dbName)
+			profile.ContainerName, profile.DBUser, profile.DBName)
 
 		// Thiết lập output
 		simpleDumpCmd.Stdout = outFile
@@ -355,14 +380,11 @@ func (d *DatabaseDumper) DumpDatabase() (*DumpResult, error) {
 		log.Printf("Đã lưu thông tin backup vào database với ID: %d", backupId)
 	}
 
-	log.Printf("Dump dữ liệu thành công.")
-	log.Printf("Vị trí file: %s", outputFile)
-	log.Printf("Kích thước file: %.2f MB", float64(fileSize)/(1024*1024))
-
+	// Trả về kết quả thành công
+	result.Success = true
 	result.FilePath = outputFile
 	result.FileSize = fileSize
-	result.Success = true
-	result.Message = "Dump dữ liệu thành công"
+	result.Message = fmt.Sprintf("Dump database thành công, đã lưu tại: %s", outputFile)
 
 	return result, nil
 }

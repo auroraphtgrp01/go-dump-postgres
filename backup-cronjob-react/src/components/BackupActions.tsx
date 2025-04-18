@@ -1,7 +1,21 @@
-import { Card, Button, Row, Col, Modal } from 'antd';
-import { DatabaseOutlined, CloudUploadOutlined } from '@ant-design/icons';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { Button, Card, Row, Col, Select, Form } from 'antd';
+import { DatabaseOutlined, CloudUploadOutlined, ReloadOutlined } from '@ant-design/icons';
 import Toast from './Toast';
+
+// Thêm định nghĩa interface DatabaseProfile
+interface DatabaseProfile {
+  id: number;
+  name: string;
+  description: string;
+  db_user: string;
+  db_password: string;
+  container_name: string;
+  db_name: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
 
 interface BackupActionsProps {
   needAuth: boolean;
@@ -12,14 +26,59 @@ const BackupActions: React.FC<BackupActionsProps> = ({ needAuth, onOperationComp
   const [dumpLoading, setDumpLoading] = useState(false);
   const [uploadLastLoading, setUploadLastLoading] = useState(false);
   const [uploadAllLoading, setUploadAllLoading] = useState(false);
+  const [profiles, setProfiles] = useState<DatabaseProfile[]>([]);
+  const [selectedProfileId, setSelectedProfileId] = useState<number | null>(null);
+  const [loadingProfiles, setLoadingProfiles] = useState(false);
+  
+  // Fetch database profiles
+  useEffect(() => {
+    const fetchProfiles = async () => {
+      try {
+        setLoadingProfiles(true);
+        const token = localStorage.getItem('auth_token');
+        const response = await fetch('/api/profiles', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success) {
+            setProfiles(data.profiles);
+            
+            // Tìm profile đang active và set làm mặc định
+            const activeProfile = data.profiles.find((p: DatabaseProfile) => p.is_active);
+            if (activeProfile) {
+              setSelectedProfileId(activeProfile.id);
+            } else if (data.profiles.length > 0) {
+              setSelectedProfileId(data.profiles[0].id);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching profiles:', error);
+        Toast.error('Lỗi khi tải danh sách profile');
+      } finally {
+        setLoadingProfiles(false);
+      }
+    };
+    
+    fetchProfiles();
+  }, []);
 
   // Dump database
   const handleDump = async () => {
+    if (!selectedProfileId) {
+      Toast.error('Vui lòng chọn profile để dump');
+      return;
+    }
+    
     const loadingMessage = Toast.loading('Đang dump database...');
     try {
       setDumpLoading(true);
       const token = localStorage.getItem('auth_token');
-      const response = await fetch('/dump', {
+      const response = await fetch(`/dump?profile_id=${selectedProfileId}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -48,9 +107,9 @@ const BackupActions: React.FC<BackupActionsProps> = ({ needAuth, onOperationComp
     }
   };
 
-  // Upload last backup
+  // Upload backup mới nhất
   const handleUploadLast = async () => {
-    const loadingMessage = Toast.loading('Đang upload file mới nhất...');
+    const loadingMessage = Toast.loading('Đang upload backup mới nhất...');
     try {
       setUploadLastLoading(true);
       const token = localStorage.getItem('auth_token');
@@ -65,15 +124,17 @@ const BackupActions: React.FC<BackupActionsProps> = ({ needAuth, onOperationComp
       const result = await response.json();
       
       if (response.ok && result.success) {
-        Toast.success(result.message || 'Upload file mới nhất thành công');
+        console.log('Upload thành công:', result.message);
+        Toast.success(result.message || 'Upload backup thành công');
         setTimeout(() => {
           if (onOperationComplete) onOperationComplete();
         }, 1000);
       } else {
-        Toast.error(result.message || 'Upload file mới nhất thất bại');
+        console.error('Upload thất bại:', result.message);
+        Toast.error(result.message || 'Upload backup thất bại');
       }
     } catch (error) {
-      console.error('Error uploading last file:', error);
+      console.error('Error uploading backup:', error);
       Toast.error('Lỗi kết nối máy chủ');
     } finally {
       loadingMessage();
@@ -81,101 +142,114 @@ const BackupActions: React.FC<BackupActionsProps> = ({ needAuth, onOperationComp
     }
   };
 
-  // Upload all backups
+  // Upload tất cả backups
   const handleUploadAll = async () => {
-    Modal.confirm({
-      title: 'Xác nhận',
-      content: 'Bạn có chắc chắn muốn upload tất cả các file backup lên Google Drive?',
-      okText: 'Đồng ý',
-      cancelText: 'Hủy',
-      onOk: async () => {
-        const loadingMessage = Toast.loading('Đang upload tất cả file...');
-        try {
-          setUploadAllLoading(true);
-          const token = localStorage.getItem('auth_token');
-          const response = await fetch('/upload-all', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json',
-            },
-          });
-          
-          const result = await response.json();
-          
-          if (response.ok && result.success) {
-            Toast.success(result.message || 'Upload tất cả file thành công');
-            setTimeout(() => {
-              if (onOperationComplete) onOperationComplete();
-            }, 1000);
-          } else {
-            Toast.error(result.message || 'Upload tất cả file thất bại');
-          }
-        } catch (error) {
-          console.error('Error uploading all files:', error);
-          Toast.error('Lỗi kết nối máy chủ');
-        } finally {
-          loadingMessage();
-          setUploadAllLoading(false);
-        }
-      },
-    });
+    const loadingMessage = Toast.loading('Đang upload tất cả backups...');
+    try {
+      setUploadAllLoading(true);
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch('/upload-all', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok && result.success) {
+        console.log('Upload tất cả thành công:', result.message);
+        Toast.success(result.message || 'Upload tất cả backups thành công');
+        setTimeout(() => {
+          if (onOperationComplete) onOperationComplete();
+        }, 1000);
+      } else {
+        console.error('Upload tất cả thất bại:', result.message);
+        Toast.error(result.message || 'Upload tất cả backups thất bại');
+      }
+    } catch (error) {
+      console.error('Error uploading all backups:', error);
+      Toast.error('Lỗi kết nối máy chủ');
+    } finally {
+      loadingMessage();
+      setUploadAllLoading(false);
+    }
   };
 
   return (
-    <Row gutter={16} className="mb-4">
-      <Col md={12}>
-        <Card 
-          title="Dump Database" 
-          className="shadow-sm"
-          headStyle={{ backgroundColor: '#0dcaf0', color: 'white' }}
+    <Card title="Thao tác Backup" className="shadow-sm mb-4">
+      <Form layout="vertical">
+        <Form.Item 
+          label="Chọn Profile Database" 
+          help="Chọn cấu hình database để thực hiện backup"
         >
-          <p>Tạo bản sao lưu dữ liệu từ container Docker và lưu vào thư mục local.</p>
-          <Button 
-            type="primary" 
-            onClick={handleDump} 
-            loading={dumpLoading}
-            disabled={needAuth}
+          <Select
+            placeholder="Chọn profile"
+            loading={loadingProfiles}
+            value={selectedProfileId}
+            onChange={(value) => setSelectedProfileId(value)}
+            style={{ width: '100%' }}
+            optionFilterProp="children"
+          >
+            {profiles.map((profile) => (
+              <Select.Option key={profile.id} value={profile.id}>
+                {profile.name} ({profile.db_name}@{profile.container_name})
+                {profile.is_active && ' (Đang hoạt động)'}
+              </Select.Option>
+            ))}
+          </Select>
+        </Form.Item>
+      </Form>
+      
+      <Row gutter={16}>
+        <Col xs={24} sm={8}>
+          <Button
+            type="primary"
             icon={<DatabaseOutlined />}
+            loading={dumpLoading}
+            onClick={handleDump}
+            disabled={!selectedProfileId}
+            block
+            className="mb-2"
           >
             Dump Database
           </Button>
-        </Card>
-      </Col>
-      <Col md={12}>
-        <Card 
-          title="Upload lên Google Drive" 
-          className="shadow-sm"
-          headStyle={{ backgroundColor: '#198754', color: 'white' }}
-        >
-          <p>Upload file backup mới nhất hoặc tất cả các file backup lên Google Drive.</p>
-          <div className="flex space-x-2">
-            <Button 
-              type="primary" 
-              onClick={handleUploadLast} 
-              loading={uploadLastLoading}
-              disabled={needAuth}
-              icon={<CloudUploadOutlined />}
-            >
-              Upload File Mới Nhất
-            </Button>
-            <Button 
-              onClick={handleUploadAll} 
-              loading={uploadAllLoading}
-              disabled={needAuth}
-            >
-              Upload Tất Cả
-            </Button>
-          </div>
-          {needAuth && (
-            <div className="mt-2 text-red-500 text-sm">
-              <span>Vui lòng xác thực tài khoản Google trước khi upload</span>
-            </div>
-          )}
-        </Card>
-      </Col>
-    </Row>
+        </Col>
+        <Col xs={24} sm={8}>
+          <Button
+            type="default"
+            icon={<CloudUploadOutlined />}
+            loading={uploadLastLoading}
+            onClick={handleUploadLast}
+            block
+            className="mb-2"
+          >
+            Upload Backup Mới Nhất
+          </Button>
+        </Col>
+        <Col xs={24} sm={8}>
+          <Button
+            type="default"
+            icon={<ReloadOutlined />}
+            loading={uploadAllLoading}
+            onClick={handleUploadAll}
+            block
+          >
+            Upload Tất Cả
+          </Button>
+        </Col>
+      </Row>
+      
+      {needAuth && (
+        <div className="text-center mt-4">
+          <p className="text-danger">
+            Bạn cần xác thực Google Drive để upload backup.
+          </p>
+        </div>
+      )}
+    </Card>
   );
 };
 
-export default BackupActions; 
+export default BackupActions;

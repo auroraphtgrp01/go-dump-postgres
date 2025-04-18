@@ -7,6 +7,7 @@ import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import ConfigPage from './pages/ConfigPage';
 import GoogleAuthPage from './pages/GoogleAuthPage';
+import ProfilesPage from './pages/ProfilesPage';
 import './App.css';
 
 function App() {
@@ -17,6 +18,7 @@ function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/settings" element={<ConfigPage />} />
+          <Route path="/profiles" element={<ProfilesPage />} />
           <Route path="/google-auth" element={<GoogleAuthPage />} />
           {/* Route mặc định cho các URL không tồn tại */}
           <Route path="*" element={<Navigate to="/login" />} />

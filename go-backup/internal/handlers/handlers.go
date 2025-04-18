@@ -270,8 +270,30 @@ func (h *Handler) AuthCallbackHandler(c *gin.Context) {
 
 // DumpHandler xử lý yêu cầu dump database
 func (h *Handler) DumpHandler(c *gin.Context) {
-	// Thực hiện dump database
-	result, err := h.DatabaseDumper.DumpDatabase()
+	// Lấy profile ID từ query hoặc JSON body
+	var profileId int64 = 0
+
+	// Thử lấy từ form data hoặc JSON
+	type DumpRequest struct {
+		ProfileID int64 `json:"profile_id" form:"profile_id"`
+	}
+
+	var req DumpRequest
+	if err := c.ShouldBind(&req); err == nil && req.ProfileID > 0 {
+		profileId = req.ProfileID
+	}
+
+	// Nếu không có trong JSON, thử lấy từ query string
+	if profileId == 0 {
+		if idStr := c.Query("profile_id"); idStr != "" {
+			if id, err := strconv.ParseInt(idStr, 10, 64); err == nil {
+				profileId = id
+			}
+		}
+	}
+
+	// Thực hiện dump database với profile đã chọn
+	result, err := h.DatabaseDumper.DumpDatabase(profileId)
 	if err != nil {
 		log.Printf("Lỗi khi dump database: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{
