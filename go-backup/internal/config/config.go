@@ -57,14 +57,14 @@ func InitConfig() (cfg *Config, err error) {
 		ServerAddress:       "0.0.0.0:8080",
 		TokenSymmetricKey:   "12345678901234567890123456789012",
 		AccessTokenDuration: time.Hour * 24,
-		JWTSecret:           "jwt-secret-key",
+		JWTSecret:           "",
 		AdminUsername:       getEnv("ADMIN_USERNAME", "admin"),
 		AdminPassword:       getEnv("ADMIN_PASSWORD", "admin123"),
 		BackupDir:           getEnv("BACKUP_DIR", "./backup/"),
 		GoogleClientID:      getEnv("GOOGLE_CLIENT_ID", ""),
 		GoogleClientSecret:  getEnv("GOOGLE_CLIENT_SECRET", ""),
 		TokenDir:            getEnv("TOKEN_DIR", "./data/token/"),
-		FolderDrive:         getEnv("GOOGLE_FOLDER", "Backups"),
+		FolderDrive:         getEnv("GOOGLE_FOLDER", ""),
 	}
 
 	// Chỉ chuyển đổi đường dẫn tuyệt đối nếu không bắt đầu bằng ./

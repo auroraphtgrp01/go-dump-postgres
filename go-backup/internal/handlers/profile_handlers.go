@@ -88,6 +88,19 @@ func (h *Handler) CreateProfileHandler(c *gin.Context) {
 		return
 	}
 
+	// Thiết lập các giá trị mặc định nếu chưa có
+	if profile.CronSchedule == "" {
+		profile.CronSchedule = "0 0 * * *" // Chạy hàng ngày lúc 00:00
+	}
+
+	if profile.BackupRetention <= 0 {
+		profile.BackupRetention = 7 // Mặc định giữ file backup 7 ngày
+	}
+
+	if profile.FolderDrive == "" {
+		profile.FolderDrive = "Postgres Backup" // Mặc định tên thư mục Drive
+	}
+
 	// Thiết lập thời gian
 	now := time.Now()
 	profile.CreatedAt = now
@@ -109,6 +122,9 @@ func (h *Handler) CreateProfileHandler(c *gin.Context) {
 	// Ẩn mật khẩu
 	if profile.DBPassword != "" {
 		profile.DBPassword = "••••••••"
+	}
+	if profile.GoogleClientSecret != "" {
+		profile.GoogleClientSecret = "••••••••"
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
@@ -142,13 +158,20 @@ func (h *Handler) UpdateProfileHandler(c *gin.Context) {
 
 	// Lấy dữ liệu cập nhật
 	var updateData struct {
-		Name          string `json:"name"`
-		Description   string `json:"description"`
-		DBUser        string `json:"db_user"`
-		DBPassword    string `json:"db_password"`
-		ContainerName string `json:"container_name"`
-		DBName        string `json:"db_name"`
-		IsActive      *bool  `json:"is_active"`
+		Name               string `json:"name"`
+		Description        string `json:"description"`
+		DBUser             string `json:"db_user"`
+		DBPassword         string `json:"db_password"`
+		ContainerName      string `json:"container_name"`
+		DBName             string `json:"db_name"`
+		GoogleClientID     string `json:"google_client_id"`
+		GoogleClientSecret string `json:"google_client_secret"`
+		BackupDir          string `json:"backup_dir"`
+		CronSchedule       string `json:"cron_schedule"`
+		BackupRetention    int    `json:"backup_retention"`
+		UploadToDrive      *bool  `json:"upload_to_drive"`
+		FolderDrive        string `json:"folder_drive"`
+		IsActive           *bool  `json:"is_active"`
 	}
 
 	if err := c.ShouldBindJSON(&updateData); err != nil {
@@ -178,6 +201,30 @@ func (h *Handler) UpdateProfileHandler(c *gin.Context) {
 	if updateData.DBName != "" {
 		currentProfile.DBName = updateData.DBName
 	}
+
+	// Cập nhật các trường mới
+	if updateData.GoogleClientID != "" {
+		currentProfile.GoogleClientID = updateData.GoogleClientID
+	}
+	if updateData.GoogleClientSecret != "" && updateData.GoogleClientSecret != "••••••••" {
+		currentProfile.GoogleClientSecret = updateData.GoogleClientSecret
+	}
+	if updateData.BackupDir != "" {
+		currentProfile.BackupDir = updateData.BackupDir
+	}
+	if updateData.CronSchedule != "" {
+		currentProfile.CronSchedule = updateData.CronSchedule
+	}
+	if updateData.BackupRetention > 0 {
+		currentProfile.BackupRetention = updateData.BackupRetention
+	}
+	if updateData.UploadToDrive != nil {
+		currentProfile.UploadToDrive = *updateData.UploadToDrive
+	}
+	if updateData.FolderDrive != "" {
+		currentProfile.FolderDrive = updateData.FolderDrive
+	}
+
 	if updateData.IsActive != nil {
 		currentProfile.IsActive = *updateData.IsActive
 	}
@@ -205,6 +252,9 @@ func (h *Handler) UpdateProfileHandler(c *gin.Context) {
 
 	// Ẩn mật khẩu trước khi trả về
 	currentProfile.DBPassword = "••••••••"
+	if currentProfile.GoogleClientSecret != "" {
+		currentProfile.GoogleClientSecret = "••••••••"
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,

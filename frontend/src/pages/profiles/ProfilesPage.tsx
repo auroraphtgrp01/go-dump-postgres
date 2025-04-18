@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { isAuthenticated } from '@/utils/auth';
 import Toast from '@/components/Toast';
 import { 
@@ -27,11 +28,12 @@ interface Profile {
 const ProfilesPage = () => {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [newProfileName, setNewProfileName] = useState('');
-  const [editingProfile, setEditingProfile] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [isLoadingProfiles, setIsLoadingProfiles] = useState(true);
+  const [selectedProfile, setSelectedProfile] = useState<Profile | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const navigate = useNavigate();
 
   // Kiểm tra trạng thái xác thực khi tải trang
@@ -179,25 +181,25 @@ const ProfilesPage = () => {
   };
 
   const startEditing = (profile: Profile) => {
-    setEditingProfile(profile.id);
+    setSelectedProfile(profile);
     setEditName(profile.name);
   };
 
   const cancelEditing = () => {
-    setEditingProfile(null);
+    setSelectedProfile(null);
     setEditName('');
   };
 
-  const handleUpdateProfile = async (id: string) => {
-    if (!editName.trim()) {
+  const handleUpdateProfile = async () => {
+    if (!selectedProfile || !editName.trim()) {
       cancelEditing();
       return;
     }
 
-    setIsLoading(true);
+    setIsSaving(true);
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`/api/profiles/${id}`, {
+      const response = await fetch(`/api/profiles/${selectedProfile.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -212,7 +214,7 @@ const ProfilesPage = () => {
         const data = await response.json();
         if (data.success) {
           Toast.success('Cập nhật profile thành công');
-          setEditingProfile(null);
+          setSelectedProfile(null);
           fetchProfiles(); // Làm mới danh sách
         } else {
           Toast.error(data.message || 'Không thể cập nhật profile');
@@ -224,7 +226,7 @@ const ProfilesPage = () => {
       console.error('Error updating profile:', error);
       Toast.error('Lỗi kết nối máy chủ');
     } finally {
-      setIsLoading(false);
+      setIsSaving(false);
     }
   };
 
@@ -282,7 +284,7 @@ const ProfilesPage = () => {
         </Card>
 
         {/* Danh sách profiles */}
-        <Card className="shadow-md md:col-span-2">
+        <Card className="shadow-md md:col-span-1">
           <CardHeader>
             <div className="flex justify-between items-center">
               <CardTitle className="flex items-center">
@@ -300,7 +302,7 @@ const ProfilesPage = () => {
               </Button>
             </div>
             <CardDescription>
-              Quản lý các profile đã tạo
+              Chọn profile để xem và chỉnh sửa <span className="text-xs italic">(Nhấp vào một profile để chỉnh sửa)</span>
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -316,89 +318,160 @@ const ProfilesPage = () => {
                 <p className="text-muted-foreground">Hãy tạo profile mới để bắt đầu</p>
               </div>
             ) : (
-              <div className="space-y-4">
-                {profiles.map(profile => (
-                  <div 
-                    key={profile.id} 
-                    className={`border rounded-lg p-4 transition-all ${
-                      profile.is_active ? 'border-green-500 bg-green-50 dark:bg-green-900/10' : 'border-gray-200'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        {editingProfile === profile.id ? (
-                          <div className="flex gap-2">
-                            <Input
-                              value={editName}
-                              onChange={(e) => setEditName(e.target.value)}
-                              className="max-w-xs"
-                            />
-                            <Button 
-                              size="sm" 
-                              onClick={() => handleUpdateProfile(profile.id)}
-                              disabled={isLoading}
-                            >
-                              <Save className="w-4 h-4" />
-                            </Button>
-                            <Button 
-                              size="sm" 
-                              variant="outline" 
-                              onClick={cancelEditing}
-                            >
-                              <X className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center">
-                            <span className={`font-medium ${profile.is_active ? 'text-green-800 dark:text-green-400' : ''}`}>
-                              {profile.name}
-                            </span>
-                            {profile.is_active && (
-                              <span className="ml-2 text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 px-2 py-0.5 rounded-full">
-                                Đang sử dụng
-                              </span>
-                            )}
-                          </div>
+              <>
+                <div className="space-y-2 mb-4">
+                  {profiles.map(profile => (
+                    <div 
+                      key={profile.id} 
+                      className={`border rounded-lg p-3 transition-all cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900/10 ${
+                        profile.is_active ? 'border-green-500 bg-green-50 dark:bg-green-900/10' : 'border-gray-200'
+                      } ${selectedProfile?.id === profile.id ? 'ring-2 ring-primary' : ''}`}
+                      onClick={() => startEditing(profile)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          startEditing(profile);
+                        }
+                      }}
+                    >
+                      <div className="flex items-center">
+                        <span className={`font-medium ${profile.is_active ? 'text-green-800 dark:text-green-400' : ''}`}>
+                          {profile.name}
+                        </span>
+                        {profile.is_active && (
+                          <span className="ml-2 text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 px-2 py-0.5 rounded-full">
+                            Đang sử dụng
+                          </span>
                         )}
                       </div>
+                    </div>
+                  ))}
+                </div>
+                
+                {/* Select dropdown để chọn profile */}
+                <div className="mt-4 pt-4 border-t">
+                  <div className="space-y-2">
+                    <Label htmlFor="profile-dropdown">Hoặc chọn từ dropdown</Label>
+                    <Select 
+                      value={selectedProfile?.id} 
+                      onValueChange={(value) => {
+                        const selected = profiles.find(p => p.id === value);
+                        if (selected) {
+                          startEditing(selected);
+                        }
+                      }}
+                    >
+                      <SelectTrigger id="profile-dropdown">
+                        <SelectValue placeholder="Chọn một profile" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {profiles.map(profile => (
+                          <SelectItem key={profile.id} value={profile.id}>
+                            {profile.name} {profile.is_active && '(Đang kích hoạt)'}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+        
+        {/* Panel chỉnh sửa profile */}
+        <Card className={`shadow-md md:col-span-1 ${!selectedProfile ? 'opacity-50' : ''}`}>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Pencil className="w-5 h-5 mr-2 text-primary" />
+              Chỉnh sửa Profile
+            </CardTitle>
+            <CardDescription>
+              {selectedProfile ? `Chỉnh sửa thông tin cho profile "${selectedProfile.name}"` : 'Chọn profile từ danh sách để chỉnh sửa'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {selectedProfile ? (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="editProfileName">Tên profile</Label>
+                  <Input
+                    id="editProfileName"
+                    placeholder="Nhập tên profile"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    required
+                  />
+                </div>
+                
+                <div className="flex gap-2 justify-end">
+                  <Button 
+                    variant="outline" 
+                    onClick={cancelEditing}
+                  >
+                    <X className="w-4 h-4 mr-2" />
+                    Hủy
+                  </Button>
+                  <Button 
+                    onClick={handleUpdateProfile}
+                    disabled={isSaving || !editName.trim()}
+                  >
+                    {isSaving ? (
+                      <>
+                        <div className="animate-spin mr-2 h-4 w-4 border-2 border-background border-t-transparent rounded-full"></div>
+                        <span>Đang lưu...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4 mr-2" />
+                        Lưu thay đổi
+                      </>
+                    )}
+                  </Button>
+                </div>
+                
+                <div className="border-t pt-4 mt-4">
+                  <div className="space-y-4">
+                    <h3 className="font-medium text-sm">Thao tác khác</h3>
+                    <div className="flex gap-2">
+                      <Button 
+                        size="sm" 
+                        variant={selectedProfile.is_active ? "destructive" : "default"}
+                        onClick={() => handleToggleActive(selectedProfile.id, selectedProfile.is_active)}
+                        disabled={isLoading}
+                        className="flex-1"
+                      >
+                        {selectedProfile.is_active ? (
+                          <>
+                            <X className="w-4 h-4 mr-2" />
+                            Hủy kích hoạt
+                          </>
+                        ) : (
+                          <>
+                            <Check className="w-4 h-4 mr-2" />
+                            Kích hoạt
+                          </>
+                        )}
+                      </Button>
                       
-                      {editingProfile !== profile.id && (
-                        <div className="flex gap-2">
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            onClick={() => startEditing(profile)}
-                            disabled={isLoading}
-                          >
-                            <Pencil className="w-4 h-4" />
-                          </Button>
-                          
-                          <Button 
-                            size="sm" 
-                            variant={profile.is_active ? "destructive" : "default"}
-                            onClick={() => handleToggleActive(profile.id, profile.is_active)}
-                            disabled={isLoading}
-                          >
-                            {profile.is_active ? (
-                              <X className="w-4 h-4" />
-                            ) : (
-                              <Check className="w-4 h-4" />
-                            )}
-                          </Button>
-                          
-                          <Button 
-                            size="sm" 
-                            variant="destructive" 
-                            onClick={() => handleDeleteProfile(profile.id)}
-                            disabled={isLoading || profile.is_active}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      )}
+                      <Button 
+                        size="sm" 
+                        variant="destructive" 
+                        onClick={() => handleDeleteProfile(selectedProfile.id)}
+                        disabled={isLoading || selectedProfile.is_active}
+                        className="flex-1"
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Xóa
+                      </Button>
                     </div>
                   </div>
-                ))}
+                </div>
+              </div>
+            ) : (
+              <div className="text-center text-muted-foreground py-8">
+                Vui lòng chọn một profile từ danh sách bên cạnh để chỉnh sửa
               </div>
             )}
           </CardContent>

@@ -21,10 +21,10 @@ func DefaultConfigs() []AppConfig {
 	now := time.Now()
 	return []AppConfig{
 		// Nhóm Database
-		{Key: "DB_USER", Value: "root", Group: "database", Label: "Tên đăng nhập Database", Type: "text", CreatedAt: now, UpdatedAt: now},
+		{Key: "DB_USER", Value: "", Group: "database", Label: "Tên đăng nhập Database", Type: "text", CreatedAt: now, UpdatedAt: now},
 		{Key: "DB_PASSWORD", Value: "", Group: "database", Label: "Mật khẩu Database", Type: "password", CreatedAt: now, UpdatedAt: now},
-		{Key: "CONTAINER_NAME", Value: "mysql", Group: "database", Label: "Tên container Docker", Type: "text", CreatedAt: now, UpdatedAt: now},
-		{Key: "DB_NAME", Value: "wordpress", Group: "database", Label: "Tên Database", Type: "text", CreatedAt: now, UpdatedAt: now},
+		{Key: "CONTAINER_NAME", Value: "", Group: "database", Label: "Tên container Docker", Type: "text", CreatedAt: now, UpdatedAt: now},
+		{Key: "DB_NAME", Value: "", Group: "database", Label: "Tên Database", Type: "text", CreatedAt: now, UpdatedAt: now},
 
 		// Nhóm Google Drive
 		{Key: "GOOGLE_CLIENT_ID", Value: "", Group: "google", Label: "Google Client ID", Type: "text", CreatedAt: now, UpdatedAt: now},
@@ -33,13 +33,13 @@ func DefaultConfigs() []AppConfig {
 
 		// Nhóm Backup
 		{Key: "BACKUP_DIR", Value: "./backups", Group: "backup", Label: "Thư mục lưu backup", Type: "text", CreatedAt: now, UpdatedAt: now},
-		{Key: "BACKUP_RETENTION_DAYS", Value: "30", Group: "backup", Label: "Số ngày lưu giữ backup", Type: "number", CreatedAt: now, UpdatedAt: now},
-		{Key: "CRON_SCHEDULE", Value: "0 0 * * *", Group: "backup", Label: "Lịch backup tự động (Cron format)", Type: "text", CreatedAt: now, UpdatedAt: now},
+		{Key: "BACKUP_RETENTION_DAYS", Value: "", Group: "backup", Label: "Số ngày lưu giữ backup", Type: "number", CreatedAt: now, UpdatedAt: now},
+		{Key: "CRON_SCHEDULE", Value: "", Group: "backup", Label: "Lịch backup tự động (Cron format)", Type: "text", CreatedAt: now, UpdatedAt: now},
 
 		// Nhóm Hệ thống
 		{Key: "ADMIN_USERNAME", Value: "admin", Group: "system", Label: "Tên đăng nhập Admin", Type: "text", CreatedAt: now, UpdatedAt: now},
 		{Key: "ADMIN_PASSWORD", Value: "admin123", Group: "system", Label: "Mật khẩu Admin", Type: "password", CreatedAt: now, UpdatedAt: now},
-		{Key: "JWT_SECRET", Value: "your_secure_jwt_secret_key_change_this_in_production", Group: "system", Label: "JWT Secret Key", Type: "password", CreatedAt: now, UpdatedAt: now},
+		{Key: "JWT_SECRET", Value: "", Group: "system", Label: "JWT Secret Key", Type: "password", CreatedAt: now, UpdatedAt: now},
 		{Key: "WEBAPP_PORT", Value: "8080", Group: "system", Label: "Port cho Web UI", Type: "text", CreatedAt: now, UpdatedAt: now},
 	}
 }

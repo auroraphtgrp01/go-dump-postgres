@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { isAuthenticated, getUser, logout } from "@/utils/auth";
-import { Menu, User, LogOut, Database, Settings, LayoutDashboard, Users } from "lucide-react";
+import { Menu, User, LogOut, Database, Settings, LayoutDashboard } from "lucide-react";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -62,10 +62,6 @@ const Navbar = () => {
                 <Settings className="h-4 w-4" />
                 <span>Cấu hình</span>
               </Link>
-              <Link to="/profiles" className="text-sm font-medium text-gray-700 hover:text-primary dark:text-gray-300 dark:hover:text-primary transition flex items-center gap-1">
-                <Users className="h-4 w-4" />
-                <span>Profiles</span>
-              </Link>
             </>
           )}
         </nav>
@@ -86,10 +82,6 @@ const Navbar = () => {
                 <DropdownMenuItem onClick={() => navigateTo('/settings')}>
                   <Settings className="mr-2 h-4 w-4" />
                   <span>Cấu hình</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigateTo('/profiles')}>
-                  <Users className="mr-2 h-4 w-4" />
-                  <span>Profiles</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="cursor-pointer text-red-500 focus:text-red-500" onClick={handleLogout}>
@@ -134,14 +126,6 @@ const Navbar = () => {
                 >
                   <Settings className="h-4 w-4" />
                   <span>Cấu hình</span>
-                </Link>
-                <Link
-                  to="/profiles"
-                  className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-primary dark:text-gray-300"
-                  onClick={() => setIsOpen(false)}
-                >
-                  <Users className="h-4 w-4" />
-                  <span>Profiles</span>
                 </Link>
                 <button
                   onClick={() => {

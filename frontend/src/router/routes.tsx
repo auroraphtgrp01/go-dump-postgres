@@ -4,7 +4,6 @@ import NotFound from '@/pages/NotFound';
 import AppLayout from '@/components/layout/AppLayout';
 import Login from '@/pages/auth/Login';
 import ConfigPage from '@/pages/settings/ConfigPage';
-import ProfilesPage from '@/pages/profiles/ProfilesPage';
 import GoogleAuthPage from '@/pages/google-auth/GoogleAuthPage';
 
 export const routes: RouteObject[] = [
@@ -32,11 +31,7 @@ export const routes: RouteObject[] = [
       {
         path: 'settings',
         element: <ConfigPage />,
-      },
-      {
-        path: 'profiles',
-        element: <ProfilesPage />,
-      },
+      }
     ]
   }
 ];

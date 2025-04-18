@@ -444,7 +444,11 @@ const HomePage = () => {
                     </thead>
                     <tbody>
                       {backupFiles.map((file) => (
-                        <tr key={file.id} className="border-b border-border hover:bg-muted/50 transition-colors">
+                        <tr 
+                          key={file.id} 
+                          className="border-b border-border hover:bg-muted/50 transition-colors" 
+                          onClick={(e) => e.preventDefault()}
+                        >
                           <td className="py-3 px-4 text-left">
                             <div className="flex items-center">
                               <FileArchive className="h-4 w-4 mr-2 text-primary" />
@@ -479,6 +483,7 @@ const HomePage = () => {
                                   rel="noopener noreferrer"
                                   title="Xem trên Google Drive"
                                   className="flex items-center justify-center h-8 w-8 p-0 rounded-md hover:bg-muted"
+                                  onClick={(e) => e.stopPropagation()}
                                 >
                                   <ExternalLink className="h-4 w-4" />
                                 </a>
@@ -488,6 +493,10 @@ const HomePage = () => {
                                 size="sm" 
                                 className="h-8 w-8 p-0"
                                 title="Tải xuống"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  // Xử lý tải xuống tại đây nếu cần
+                                }}
                               >
                                 <Download className="h-4 w-4" />
                               </Button>
@@ -496,7 +505,10 @@ const HomePage = () => {
                                   variant="ghost" 
                                   size="sm" 
                                   className="h-8 w-8 p-0"
-                                  onClick={() => handleUploadToDrive(file.id)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleUploadToDrive(file.id);
+                                  }}
                                   disabled={isUploading || needAuth}
                                   title="Upload lên Google Drive"
                                 >
@@ -507,7 +519,10 @@ const HomePage = () => {
                                 variant="ghost" 
                                 size="sm" 
                                 className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30"
-                                onClick={() => handleDeleteBackup(file.id)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteBackup(file.id);
+                                }}
                                 disabled={isDeleting === file.id}
                                 title="Xóa"
                               >

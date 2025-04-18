@@ -21,6 +21,13 @@ func CreateProfileTable() error {
 			container_name TEXT NOT NULL,
 			db_name TEXT NOT NULL,
 			is_active BOOLEAN DEFAULT 1,
+			google_client_id TEXT,
+			google_client_secret TEXT,
+			backup_dir TEXT,
+			cron_schedule TEXT DEFAULT '0 0 * * *',
+			backup_retention INTEGER DEFAULT 7,
+			upload_to_drive BOOLEAN DEFAULT 0,
+			folder_drive TEXT,
 			created_at DATETIME NOT NULL,
 			updated_at DATETIME NOT NULL
 		)
@@ -43,12 +50,36 @@ func EnsureDefaultProfile() error {
 		dbPassword, _ := GetConfigValue("DB_PASSWORD")
 		containerName, _ := GetConfigValue("CONTAINER_NAME")
 		dbName, _ := GetConfigValue("DB_NAME")
+		googleClientID, _ := GetConfigValue("GOOGLE_CLIENT_ID")
+		googleClientSecret, _ := GetConfigValue("GOOGLE_CLIENT_SECRET")
+		backupDir, _ := GetConfigValue("BACKUP_DIR")
+		folderDrive, _ := GetConfigValue("GOOGLE_FOLDER")
+		cronSchedule, _ := GetConfigValue("CRON_SCHEDULE")
+		backupRetentionStr, _ := GetConfigValue("BACKUP_RETENTION_DAYS")
+
+		backupRetention := 0
+		if backupRetentionStr != "" {
+			var err error
+			backupRetention, err = parseInt(backupRetentionStr, 0)
+			if err != nil {
+				log.Printf("Không thể chuyển đổi BACKUP_RETENTION_DAYS thành số: %v", err)
+			}
+		}
 
 		// Tạo profile mặc định
 		now := time.Now()
 		_, err = DB.Exec(
-			"INSERT INTO profiles (name, description, db_user, db_password, container_name, db_name, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-			"Default", "Profile mặc định từ cấu hình có sẵn", dbUser, dbPassword, containerName, dbName, true, now, now,
+			`INSERT INTO profiles (
+				name, description, db_user, db_password, container_name, db_name, 
+				is_active, google_client_id, google_client_secret, backup_dir, 
+				cron_schedule, backup_retention, upload_to_drive, folder_drive, 
+				created_at, updated_at
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			"Default", "Profile mặc định",
+			dbUser, dbPassword, containerName, dbName,
+			true, googleClientID, googleClientSecret, backupDir,
+			cronSchedule, backupRetention, false, folderDrive,
+			now, now,
 		)
 		if err != nil {
 			return err
@@ -63,7 +94,10 @@ func EnsureDefaultProfile() error {
 // GetAllProfiles lấy tất cả các profile
 func GetAllProfiles() ([]models.DatabaseProfile, error) {
 	rows, err := DB.Query(`
-		SELECT id, name, description, db_user, db_password, container_name, db_name, is_active, created_at, updated_at
+		SELECT id, name, description, db_user, db_password, container_name, db_name, 
+			is_active, google_client_id, google_client_secret, backup_dir, 
+			cron_schedule, backup_retention, upload_to_drive, folder_drive, 
+			created_at, updated_at
 		FROM profiles
 		ORDER BY name
 	`)
@@ -78,7 +112,9 @@ func GetAllProfiles() ([]models.DatabaseProfile, error) {
 		err := rows.Scan(
 			&profile.ID, &profile.Name, &profile.Description,
 			&profile.DBUser, &profile.DBPassword, &profile.ContainerName, &profile.DBName,
-			&profile.IsActive, &profile.CreatedAt, &profile.UpdatedAt,
+			&profile.IsActive, &profile.GoogleClientID, &profile.GoogleClientSecret, &profile.BackupDir,
+			&profile.CronSchedule, &profile.BackupRetention, &profile.UploadToDrive, &profile.FolderDrive,
+			&profile.CreatedAt, &profile.UpdatedAt,
 		)
 		if err != nil {
 			return nil, err
@@ -93,13 +129,18 @@ func GetAllProfiles() ([]models.DatabaseProfile, error) {
 func GetProfile(id int64) (models.DatabaseProfile, error) {
 	var profile models.DatabaseProfile
 	err := DB.QueryRow(`
-		SELECT id, name, description, db_user, db_password, container_name, db_name, is_active, created_at, updated_at
+		SELECT id, name, description, db_user, db_password, container_name, db_name, 
+			is_active, google_client_id, google_client_secret, backup_dir, 
+			cron_schedule, backup_retention, upload_to_drive, folder_drive, 
+			created_at, updated_at
 		FROM profiles
 		WHERE id = ?
 	`, id).Scan(
 		&profile.ID, &profile.Name, &profile.Description,
 		&profile.DBUser, &profile.DBPassword, &profile.ContainerName, &profile.DBName,
-		&profile.IsActive, &profile.CreatedAt, &profile.UpdatedAt,
+		&profile.IsActive, &profile.GoogleClientID, &profile.GoogleClientSecret, &profile.BackupDir,
+		&profile.CronSchedule, &profile.BackupRetention, &profile.UploadToDrive, &profile.FolderDrive,
+		&profile.CreatedAt, &profile.UpdatedAt,
 	)
 	return profile, err
 }
@@ -111,8 +152,17 @@ func CreateProfile(profile models.DatabaseProfile) (int64, error) {
 	profile.UpdatedAt = now
 
 	result, err := DB.Exec(
-		"INSERT INTO profiles (name, description, db_user, db_password, container_name, db_name, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-		profile.Name, profile.Description, profile.DBUser, profile.DBPassword, profile.ContainerName, profile.DBName, profile.IsActive, profile.CreatedAt, profile.UpdatedAt,
+		`INSERT INTO profiles (
+			name, description, db_user, db_password, container_name, db_name, 
+			is_active, google_client_id, google_client_secret, backup_dir, 
+			cron_schedule, backup_retention, upload_to_drive, folder_drive, 
+			created_at, updated_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		profile.Name, profile.Description, profile.DBUser, profile.DBPassword,
+		profile.ContainerName, profile.DBName, profile.IsActive,
+		profile.GoogleClientID, profile.GoogleClientSecret, profile.BackupDir,
+		profile.CronSchedule, profile.BackupRetention, profile.UploadToDrive, profile.FolderDrive,
+		profile.CreatedAt, profile.UpdatedAt,
 	)
 	if err != nil {
 		return 0, err
@@ -127,8 +177,18 @@ func UpdateProfile(profile models.DatabaseProfile) error {
 	profile.UpdatedAt = time.Now()
 
 	_, err := DB.Exec(
-		"UPDATE profiles SET name = ?, description = ?, db_user = ?, db_password = ?, container_name = ?, db_name = ?, is_active = ?, updated_at = ? WHERE id = ?",
-		profile.Name, profile.Description, profile.DBUser, profile.DBPassword, profile.ContainerName, profile.DBName, profile.IsActive, profile.UpdatedAt, profile.ID,
+		`UPDATE profiles SET 
+			name = ?, description = ?, db_user = ?, db_password = ?, 
+			container_name = ?, db_name = ?, is_active = ?, 
+			google_client_id = ?, google_client_secret = ?, backup_dir = ?, 
+			cron_schedule = ?, backup_retention = ?, upload_to_drive = ?, folder_drive = ?, 
+			updated_at = ? 
+		WHERE id = ?`,
+		profile.Name, profile.Description, profile.DBUser, profile.DBPassword,
+		profile.ContainerName, profile.DBName, profile.IsActive,
+		profile.GoogleClientID, profile.GoogleClientSecret, profile.BackupDir,
+		profile.CronSchedule, profile.BackupRetention, profile.UploadToDrive, profile.FolderDrive,
+		profile.UpdatedAt, profile.ID,
 	)
 	return err
 }
@@ -143,14 +203,19 @@ func DeleteProfile(id int64) error {
 func GetActiveProfile() (models.DatabaseProfile, error) {
 	var profile models.DatabaseProfile
 	err := DB.QueryRow(`
-		SELECT id, name, description, db_user, db_password, container_name, db_name, is_active, created_at, updated_at
+		SELECT id, name, description, db_user, db_password, container_name, db_name, 
+			is_active, google_client_id, google_client_secret, backup_dir, 
+			cron_schedule, backup_retention, upload_to_drive, folder_drive, 
+			created_at, updated_at
 		FROM profiles
 		WHERE is_active = 1
 		LIMIT 1
 	`).Scan(
 		&profile.ID, &profile.Name, &profile.Description,
 		&profile.DBUser, &profile.DBPassword, &profile.ContainerName, &profile.DBName,
-		&profile.IsActive, &profile.CreatedAt, &profile.UpdatedAt,
+		&profile.IsActive, &profile.GoogleClientID, &profile.GoogleClientSecret, &profile.BackupDir,
+		&profile.CronSchedule, &profile.BackupRetention, &profile.UploadToDrive, &profile.FolderDrive,
+		&profile.CreatedAt, &profile.UpdatedAt,
 	)
 	if err == sql.ErrNoRows {
 		return profile, fmt.Errorf("không tìm thấy profile nào đang hoạt động")
@@ -180,4 +245,17 @@ func SetActiveProfile(id int64) error {
 	}
 
 	return tx.Commit()
+}
+
+// Hàm tiện ích để chuyển đổi string sang int với giá trị mặc định
+func parseInt(s string, defaultValue int) (int, error) {
+	if s == "" {
+		return defaultValue, nil
+	}
+	var value int
+	_, err := fmt.Sscanf(s, "%d", &value)
+	if err != nil {
+		return defaultValue, err
+	}
+	return value, nil
 }
