@@ -4,18 +4,31 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Switch } from '@/components/ui/switch';
 import { isAuthenticated } from '@/utils/auth';
 import Toast from '@/components/Toast';
 import { Settings, Database, Save, RefreshCw } from 'lucide-react';
-import { ConfigService } from '@/lib/http/api';
+
+// Định nghĩa interface cho dữ liệu cấu hình từ API
+interface ConfigItem {
+  id: number;
+  key: string;
+  value: string;
+  group: string;
+  label: string;
+  type: string;
+}
+
+interface ConfigGroup {
+  group: string;
+  label: string;
+  configs: ConfigItem[];
+}
 
 const ConfigPage = () => {
-  const [dbName, setDbName] = useState('');
-  const [dbUser, setDbUser] = useState('');
-  const [dbPassword, setDbPassword] = useState('');
-  const [dbHost, setDbHost] = useState('');
-  const [dbPort, setDbPort] = useState('');
-  const [backupFrequency, setBackupFrequency] = useState('');
+  const [configGroups, setConfigGroups] = useState<ConfigGroup[]>([]);
+  const [formValues, setFormValues] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [isFetchingConfig, setIsFetchingConfig] = useState(true);
   const navigate = useNavigate();
@@ -34,19 +47,33 @@ const ConfigPage = () => {
   const fetchConfiguration = async () => {
     setIsFetchingConfig(true);
     try {
-      const response = await ConfigService.getConfig();
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch('/api/configs', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       
-      if (response.data.success && response.data.data) {
-        const config = response.data.data;
-        // Cập nhật state từ dữ liệu cấu hình
-        setDbName(config.db_name || '');
-        setDbUser(config.db_user || '');
-        setDbPassword(config.db_password || '');
-        setDbHost(config.db_host || '');
-        setDbPort(config.db_port || '');
-        setBackupFrequency(config.backup_frequency || '');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          console.log('Config data:', data);
+          setConfigGroups(data.data);
+          
+          // Chuẩn bị dữ liệu cho form
+          const values: Record<string, string> = {};
+          data.data.forEach((group: ConfigGroup) => {
+            group.configs.forEach((config: ConfigItem) => {
+              values[config.key] = config.value;
+            });
+          });
+          
+          setFormValues(values);
+        } else {
+          Toast.error(data.message || 'Không thể tải cấu hình');
+        }
       } else {
-        Toast.error(response.data.message || 'Không thể tải cấu hình');
+        Toast.error('Không thể tải cấu hình');
       }
     } catch (error) {
       console.error('Error fetching config:', error);
@@ -56,26 +83,42 @@ const ConfigPage = () => {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      const configData = {
-        db_name: dbName,
-        db_user: dbUser,
-        db_password: dbPassword,
-        db_host: dbHost,
-        db_port: dbPort,
-        backup_frequency: backupFrequency
-      };
+      // Tạo bản sao của formValues để xử lý
+      const dataToSubmit = { ...formValues };
       
-      const response = await ConfigService.saveConfig(configData);
+      // Loại bỏ JWT_SECRET hoàn toàn
+      delete dataToSubmit.JWT_SECRET;
+      
+      // Loại bỏ các giá trị mật khẩu không thay đổi (vẫn là •••••••)
+      configGroups.forEach(group => {
+        group.configs.forEach(config => {
+          if (config.type === 'password' && dataToSubmit[config.key] === '••••••••') {
+            // Không gửi các giá trị mật khẩu đã bị ẩn
+            delete dataToSubmit[config.key];
+          }
+        });
+      });
+      
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch('/api/configs', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(dataToSubmit),
+      });
 
-      if (response.data.success) {
+      const data = await response.json();
+      if (data.success) {
         Toast.success('Cấu hình đã được lưu');
       } else {
-        Toast.error(response.data.message || 'Không thể lưu cấu hình');
+        Toast.error(data.message || 'Không thể lưu cấu hình');
       }
     } catch (error) {
       console.error('Error saving config:', error);
@@ -84,12 +127,79 @@ const ConfigPage = () => {
       setIsLoading(false);
     }
   };
+  
+  // Hàm cập nhật giá trị form
+  const handleInputChange = (key: string, value: string) => {
+    setFormValues(prev => ({
+      ...prev,
+      [key]: value
+    }));
+  };
+  
+  // Hàm cập nhật giá trị boolean (switch)
+  const handleSwitchChange = (key: string, checked: boolean) => {
+    setFormValues(prev => ({
+      ...prev,
+      [key]: checked ? 'true' : 'false'
+    }));
+  };
+
+  // Render form item dựa vào loại cấu hình
+  const renderFormItem = (config: ConfigItem) => {
+    // Không cho sửa JWT_SECRET
+    if (config.key === 'JWT_SECRET') {
+      return (
+        <Input 
+          type="password"
+          value={formValues[config.key] || ''}
+          disabled
+        />
+      );
+    }
+    
+    switch (config.type) {
+      case 'password':
+        return (
+          <Input
+            type="password"
+            value={formValues[config.key] || ''}
+            onChange={(e) => handleInputChange(config.key, e.target.value)}
+            required
+          />
+        );
+      case 'number':
+        return (
+          <Input
+            type="number"
+            min={1}
+            value={formValues[config.key] || ''}
+            onChange={(e) => handleInputChange(config.key, e.target.value)}
+            required
+          />
+        );
+      case 'switch':
+        return (
+          <Switch
+            checked={formValues[config.key] === 'true'}
+            onCheckedChange={(checked: any) => handleSwitchChange(config.key, checked)}
+          />
+        );
+      default:
+        return (
+          <Input
+            value={formValues[config.key] || ''}
+            onChange={(e) => handleInputChange(config.key, e.target.value)}
+            required
+          />
+        );
+    }
+  };
 
   return (
     <div className="container mx-auto p-6">
       <div className="mb-6 flex items-center">
         <Settings className="w-6 h-6 mr-2 text-primary" />
-        <h1 className="text-2xl font-bold">Cấu hình PostgreSQL</h1>
+        <h1 className="text-2xl font-bold">Cấu hình hệ thống</h1>
       </div>
 
       {isFetchingConfig ? (
@@ -102,84 +212,36 @@ const ConfigPage = () => {
           <CardHeader>
             <CardTitle className="flex items-center">
               <Database className="w-5 h-5 mr-2 text-primary" />
-              Cấu hình kết nối cơ sở dữ liệu
+              Cấu hình hệ thống
             </CardTitle>
             <CardDescription>
-              Nhập thông tin kết nối PostgreSQL và thiết lập tần suất sao lưu
+              Quản lý các thiết lập của hệ thống
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="dbName">Tên database</Label>
-                  <Input
-                    id="dbName"
-                    placeholder="tên_database"
-                    value={dbName}
-                    onChange={(e) => setDbName(e.target.value)}
-                    required
-                  />
-                </div>
+            <form onSubmit={handleSave} className="space-y-4">
+              <Tabs defaultValue={configGroups.length > 0 ? configGroups[0].group : "backup"}>
+                <TabsList className="mb-4">
+                  {configGroups.map(group => (
+                    <TabsTrigger key={group.group} value={group.group}>
+                      {group.label}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
                 
-                <div className="space-y-2">
-                  <Label htmlFor="dbUser">Tên người dùng</Label>
-                  <Input
-                    id="dbUser"
-                    placeholder="postgres"
-                    value={dbUser}
-                    onChange={(e) => setDbUser(e.target.value)}
-                    required
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="dbPassword">Mật khẩu</Label>
-                  <Input
-                    id="dbPassword"
-                    type="password"
-                    placeholder="********"
-                    value={dbPassword}
-                    onChange={(e) => setDbPassword(e.target.value)}
-                    required
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="dbHost">Host</Label>
-                  <Input
-                    id="dbHost"
-                    placeholder="localhost"
-                    value={dbHost}
-                    onChange={(e) => setDbHost(e.target.value)}
-                    required
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="dbPort">Port</Label>
-                  <Input
-                    id="dbPort"
-                    placeholder="5432"
-                    value={dbPort}
-                    onChange={(e) => setDbPort(e.target.value)}
-                    required
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="backupFrequency">Tần suất sao lưu (giờ)</Label>
-                  <Input
-                    id="backupFrequency"
-                    type="number"
-                    min="1"
-                    placeholder="24"
-                    value={backupFrequency}
-                    onChange={(e) => setBackupFrequency(e.target.value)}
-                    required
-                  />
-                </div>
-              </div>
+                {configGroups.map(group => (
+                  <TabsContent key={group.group} value={group.group} className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {group.configs.map(config => (
+                        <div key={config.key} className="space-y-2">
+                          <Label htmlFor={config.key}>{config.label}</Label>
+                          {renderFormItem(config)}
+                        </div>
+                      ))}
+                    </div>
+                  </TabsContent>
+                ))}
+              </Tabs>
               
               <div className="flex gap-3 pt-3 justify-end">
                 <Button 

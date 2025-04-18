@@ -39,7 +39,7 @@ export const AuthService = {
 // Config Service
 export const ConfigService = {
   getConfig: (): Promise<AxiosResponse<ApiResponse<any>>> => {
-    return axios.get('/api/config');
+    return axios.get('/api/configs');
   },
 
   saveConfig: (config: any): Promise<AxiosResponse<ApiResponse<any>>> => {
@@ -54,15 +54,15 @@ export const BackupService = {
   },
 
   createBackup: (): Promise<AxiosResponse<ApiResponse<any>>> => {
-    return axios.post('/api/backup');
+    return axios.post('/dump');
   },
 
   deleteBackup: (id: string): Promise<AxiosResponse<ApiResponse<any>>> => {
-    return axios.delete(`/api/backup/${id}`);
+    return axios.delete(`/delete-backup/${id}`);
   },
 
   uploadToDrive: (id: string): Promise<AxiosResponse<ApiResponse<any>>> => {
-    return axios.post(`/api/backup/${id}/upload`);
+    return axios.post(`/upload/${id}`);
   }
 };
 

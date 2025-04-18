@@ -78,8 +78,12 @@ const HomePage = () => {
 
       if (response.ok) {
         const data = await response.json();
+        console.log('API response data:', data);
         if (data.success) {
-          setBackupFiles(data.files || []);
+          // Kiểm tra cả hai trường data.backups và data.files để xử lý cả hai định dạng API
+          const backups = data.backups || data.files || [];
+          console.log('Setting backup files:', backups);
+          setBackupFiles(backups);
         } else {
           Toast.error(data.message || 'Không thể tải danh sách backup');
         }
@@ -99,10 +103,11 @@ const HomePage = () => {
     setIsCreatingBackup(true);
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch('/api/backup', {
+      const response = await fetch(`/dump`, {
         method: 'POST',
         headers: {
-          'Authorization': 'Bearer ' + token
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
         }
       });
 
@@ -162,7 +167,7 @@ const HomePage = () => {
     setIsDeleting(id);
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`/api/backup/${id}`, {
+      const response = await fetch(`/delete-backup/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': 'Bearer ' + token

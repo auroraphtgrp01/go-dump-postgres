@@ -13,6 +13,7 @@ alwaysApply: false
 
 - **Phân tích kỹ càng:** Cần phân tích chi tiết các khía cạnh của vấn đề trước khi đưa ra câu trả lời hoặc đoạn code. Mọi lý do và logic cần được giải thích rõ ràng.
 - **Tập trung vào nghiên cứu sâu:** Đảm bảo tập trung vào việc hiểu rõ thuộc tính, dữ liệu và logic liên quan đến yêu cầu, đặc biệt là các quy trình, sự kiện và tương tác hệ thống.
+- với UI, hãy thiết kế UI đẹp, tinh tế, sáng tạo, sử dụng bộ màu sắc nhẹ nhàng, phù hợp, font chữ dễ nhìn. 
 
 ## 3. Tổng Quan Dự Án
 
