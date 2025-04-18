@@ -84,13 +84,12 @@ func (d *DriveUploader) GetOAuthConfig() *oauth2.Config {
 // GetAuthURL tạo URL xác thực
 func (d *DriveUploader) GetAuthURL() string {
 	config := d.GetOAuthConfig()
-	// Sử dụng approval_prompt=force để buộc người dùng xác nhận lại quyền truy cập
+	// Chỉ sử dụng một trong hai tham số: prompt hoặc approval_prompt
 	// Sử dụng access_type=offline để nhận refresh token
 	// Thêm state để bảo vệ CSRF
 	url := config.AuthCodeURL(
 		"state-token",
 		oauth2.AccessTypeOffline,
-		oauth2.ApprovalForce,
 		oauth2.SetAuthURLParam("prompt", "consent"),
 	)
 	fmt.Printf("Đã tạo URL xác thực: %s\n", url)

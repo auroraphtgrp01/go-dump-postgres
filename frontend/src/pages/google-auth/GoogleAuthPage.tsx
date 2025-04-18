@@ -47,7 +47,6 @@ const GoogleAuthPage = () => {
 
       if (data.success) {
         Toast.success('Xác thực Google Drive thành công');
-        // Sau 3 giây, chuyển về trang chủ
         setTimeout(() => {
           navigate('/');
         }, 3000);
@@ -77,7 +76,6 @@ const GoogleAuthPage = () => {
       const data = await response.json();
       
       if (data.success && data.auth_url) {
-        // Chuyển hướng người dùng đến URL xác thực của Google
         window.location.href = data.auth_url;
       } else {
         setAuthSuccess(false);
@@ -114,7 +112,6 @@ const GoogleAuthPage = () => {
                 </p>
               </div>
             ) : authSuccess === null ? (
-              // Trạng thái bắt đầu
               <div className="flex flex-col items-center py-4">
                 <div className="mb-6 relative w-24 h-24">
                   <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full opacity-20 animate-pulse"></div>
