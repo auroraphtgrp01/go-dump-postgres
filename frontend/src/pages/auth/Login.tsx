@@ -72,9 +72,9 @@ export default function Login() {
     };
 
     return (
-        <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-blue-50 to-violet-50 dark:from-slate-900 dark:to-slate-800 p-4">
+        <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-blue-50 to-violet-50 dark:from-zinc-900 dark:to-zinc-800 p-4">
             <div className="w-full max-w-md">
-                <Card className="border-none shadow-xl backdrop-blur-sm bg-white/90 dark:bg-slate-900/90">
+                <Card className="border-none shadow-xl backdrop-blur-sm bg-white/90 dark:bg-zinc-900/90">
                     <CardHeader className="space-y-2 text-center pb-6">
                         <div className="mx-auto bg-primary/10 p-2 rounded-full w-12 h-12 flex items-center justify-center mb-2">
                             <User className="h-6 w-6 text-primary" />

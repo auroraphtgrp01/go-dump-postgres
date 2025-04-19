@@ -74,13 +74,13 @@ const HomePage = () => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [statsVisible, setStatsVisible] = useState(true);
   const [viewMode, setViewMode] = useState<"grid" | "table">("table");
-
+  
   // Thêm state cho dialog lịch trình
   const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
   const [newScheduleName, setNewScheduleName] = useState('');
   const [newScheduleCron, setNewScheduleCron] = useState('0 0 * * *');
   const [isCreatingSchedule, setIsCreatingSchedule] = useState(false);
-
+  
   const navigate = useNavigate();
 
   // Initialize component - auth check and data loading
@@ -197,7 +197,7 @@ const HomePage = () => {
 
     setIsCreatingBackup(true);
     Toast.info('Đang tạo backup...');
-
+    
     try {
       const token = localStorage.getItem('auth_token');
       const response = await fetch(`/dump?profile_id=${selectedProfileId}`, {
@@ -291,11 +291,11 @@ const HomePage = () => {
   // Filter backups based on active tab and search term
   const filteredBackups = backupFiles.filter(file => {
     const matchesSearch = file.name.toLowerCase().includes(searchTerm.toLowerCase());
-
+    
     if (activeTab === "all") return matchesSearch;
     if (activeTab === "uploaded") return file.uploaded && matchesSearch;
     if (activeTab === "pending") return !file.uploaded && matchesSearch;
-
+    
     return matchesSearch;
   });
 
@@ -327,11 +327,11 @@ const HomePage = () => {
 
   // Format date for display
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('vi-VN', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
+    return new Date(dateString).toLocaleDateString('vi-VN', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
     });
   };
 
@@ -391,7 +391,7 @@ const HomePage = () => {
       <div className="relative mb-8 overflow-hidden rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-zinc-900/80 dark:to-indigo-900/30 shadow-md border border-blue-100/80 dark:border-blue-900/20">
         <div className="absolute right-0 top-0 h-32 w-32 -translate-y-1/3 translate-x-1/3 rounded-full bg-blue-200/40 dark:bg-blue-400/10 blur-2xl"></div>
         <div className="absolute left-1/4 bottom-0 h-24 w-24 translate-y-1/3 rounded-full bg-indigo-300/30 dark:bg-indigo-500/10 blur-2xl"></div>
-
+        
         <div className="relative z-10 p-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-5">
             <div>
@@ -420,7 +420,7 @@ const HomePage = () => {
                   Xác thực Google Drive
                 </Button>
               )}
-
+              
               {/* Thêm nút lịch trình */}
               <Button
                 size="sm"
@@ -437,21 +437,21 @@ const HomePage = () => {
                 <AlarmClock className="mr-1.5 h-3.5 w-3.5" />
                 Quản lý lịch trình
               </Button>
-
+              
               <div className="flex gap-2">
                 <Select
                   value={selectedProfileId || undefined}
                   onValueChange={setSelectedProfileId}
                   disabled={loadingProfiles}
                 >
-                  <SelectTrigger
+                  <SelectTrigger 
                     className="h-9 w-[180px] border-blue-200 bg-white/90 text-sm dark:border-blue-800/50 dark:bg-blue-950/30"
                   >
                     <SelectValue placeholder={
-                      loadingProfiles
-                        ? "Đang tải..."
-                        : profiles.length === 0
-                          ? "Chưa có profile"
+                      loadingProfiles 
+                        ? "Đang tải..." 
+                        : profiles.length === 0 
+                          ? "Chưa có profile" 
                           : "Chọn profile"
                     } />
                   </SelectTrigger>
@@ -473,7 +473,7 @@ const HomePage = () => {
                     ))}
                   </SelectContent>
                 </Select>
-
+                
                 <Button
                   size="sm"
                   className="h-9 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-sm"
@@ -492,7 +492,7 @@ const HomePage = () => {
                     </>
                   )}
                 </Button>
-
+                
                 <Button
                   variant="outline"
                   size="sm"
@@ -529,7 +529,7 @@ const HomePage = () => {
               Thiết lập và quản lý các lịch tự động backup database PostgreSQL
             </DialogDescription>
           </DialogHeader>
-
+          
           <div className="flex-1 overflow-auto py-6 px-1">
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -543,7 +543,7 @@ const HomePage = () => {
                         </div>
                         Tạo lịch backup mới
                       </h3>
-
+                    
                       <div className="space-y-4">
                         <div className="space-y-2">
                           <Label htmlFor="schedule-name" className="font-medium text-gray-700 dark:text-zinc-200">
@@ -568,7 +568,7 @@ const HomePage = () => {
                             onChange={(value) => setNewScheduleCron(value)}
                           />
                         </div>
-
+                      
                         <Button
                           onClick={handleCreateSchedule}
                           disabled={isCreatingSchedule || !newScheduleName.trim() || !selectedProfileId}
@@ -591,7 +591,7 @@ const HomePage = () => {
                     </div>
                   </div>
                 </div>
-
+              
                 {/* Danh sách lịch trình */}
                 <div className="md:col-span-2 space-y-2">
                   <div className="rounded-xl border border-gray-200 dark:border-zinc-800 p-5 bg-white dark:bg-zinc-900 shadow-sm h-full relative">
@@ -604,17 +604,17 @@ const HomePage = () => {
                     <div className="max-h-[410px] overflow-y-auto pr-2 -mr-2">
                       <ActiveSchedules />
                     </div>
-
+                    
                     {!selectedProfileId && (
                       <div className="absolute inset-0 bg-white dark:bg-zinc-900 flex items-center justify-center flex-col gap-2 rounded-xl z-10">
                         <div className="h-14 w-14 rounded-full bg-gray-100 dark:bg-zinc-800 flex items-center justify-center">
-                          <Database className="h-7 w-7 text-gray-400 dark:text-zinc-400" />
+                          <Database className="h-7 w-7 text-gray-400 dark:text-zinc-400" /> 
                         </div>
                         <p className="text-center text-gray-600 dark:text-zinc-300 max-w-xs">
                           Vui lòng chọn profile database trước khi tạo lịch trình backup
                         </p>
                         <Button
-                          variant="outline"
+                          variant="outline" 
                           size="sm"
                           className="mt-2 border-indigo-200 text-indigo-700 dark:border-indigo-800 dark:text-indigo-400"
                           onClick={() => setIsScheduleDialogOpen(false)}
@@ -628,10 +628,10 @@ const HomePage = () => {
               </div>
             </div>
           </div>
-
+          
           <DialogFooter className="pt-4 border-t border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-800/50">
-            <Button
-              variant="outline"
+            <Button 
+              variant="outline" 
               onClick={() => {
                 setIsScheduleDialogOpen(false);
                 setIsCreatingSchedule(false);
@@ -648,11 +648,12 @@ const HomePage = () => {
 
       {/* Operation result notification */}
       {lastOperation && (
-        <div
-          className={`${SLIDE_IN_ANIMATION} mb-6 rounded-xl border px-5 py-4 flex items-start gap-3 shadow-sm ${lastOperation.success
-            ? 'border-green-200 bg-green-50 text-green-800 dark:border-green-900/30 dark:bg-green-900/10 dark:text-green-300'
-            : 'border-red-200 bg-red-50 text-red-800 dark:border-red-900/30 dark:bg-red-900/10 dark:text-red-300'
-            }`}
+        <div 
+          className={`${SLIDE_IN_ANIMATION} mb-6 rounded-xl border px-5 py-4 flex items-start gap-3 shadow-sm ${
+            lastOperation.success
+              ? 'border-green-200 bg-green-50 text-green-800 dark:border-green-900/30 dark:bg-green-900/10 dark:text-green-300'
+              : 'border-red-200 bg-red-50 text-red-800 dark:border-red-900/30 dark:bg-red-900/10 dark:text-red-300'
+          }`}
         >
           {lastOperation.success ? (
             <CheckCircle2 className="mt-0.5 h-5 w-5 flex-shrink-0 text-green-600 dark:text-green-400" />
@@ -687,7 +688,7 @@ const HomePage = () => {
               </div>
             </CardContent>
           </Card>
-
+          
           <Card className="overflow-hidden border-green-100 bg-gradient-to-br from-white to-green-50/50 shadow-md dark:border-green-900/30 dark:from-gray-900 dark:to-green-900/30">
             <CardContent className="p-0">
               <div className="flex items-stretch">
@@ -704,7 +705,7 @@ const HomePage = () => {
               </div>
             </CardContent>
           </Card>
-
+          
           <Card className="overflow-hidden border-amber-100 bg-gradient-to-br from-white to-amber-50/50 shadow-md dark:border-amber-900/30 dark:from-gray-900 dark:to-amber-900/30">
             <CardContent className="p-0">
               <div className="flex items-stretch">
@@ -721,7 +722,7 @@ const HomePage = () => {
               </div>
             </CardContent>
           </Card>
-
+          
           <Card className="overflow-hidden border-blue-100 bg-gradient-to-br from-white to-blue-50/50 shadow-md dark:border-blue-900/30 dark:from-gray-900 dark:to-blue-900/30">
             <CardContent className="p-0">
               <div className="flex items-stretch">
@@ -752,29 +753,29 @@ const HomePage = () => {
                 Danh sách Backup
               </CardTitle>
             </div>
-
+            
             <div className="flex flex-wrap items-center gap-3">
               <div className="relative flex-1 min-w-[200px]">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500 dark:text-zinc-300" />
-                <Input
-                  placeholder="Tìm kiếm backup..."
+                <Input 
+                  placeholder="Tìm kiếm backup..." 
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-9 h-9 w-full border-gray-200 bg-white dark:border-zinc-700 dark:bg-zinc-800/50"
                 />
               </div>
-
+              
               <div className="flex items-center rounded-md border border-gray-200 p-1 dark:border-zinc-700">
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
                         className={cn(
                           "h-7 w-7 rounded-sm",
-                          viewMode === "table"
-                            ? "bg-gray-100 text-gray-900 dark:bg-zinc-800 dark:text-zinc-100"
+                          viewMode === "table" 
+                            ? "bg-gray-100 text-gray-900 dark:bg-zinc-800 dark:text-zinc-100" 
                             : "text-gray-500 dark:text-zinc-400"
                         )}
                         onClick={() => setViewMode("table")}
@@ -787,17 +788,17 @@ const HomePage = () => {
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
-
+                
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
                         className={cn(
                           "h-7 w-7 rounded-sm",
-                          viewMode === "grid"
-                            ? "bg-gray-100 text-gray-900 dark:bg-zinc-800 dark:text-zinc-100"
+                          viewMode === "grid" 
+                            ? "bg-gray-100 text-gray-900 dark:bg-zinc-800 dark:text-zinc-100" 
                             : "text-gray-500 dark:text-zinc-400"
                         )}
                         onClick={() => setViewMode("grid")}
@@ -811,17 +812,17 @@ const HomePage = () => {
                   </Tooltip>
                 </TooltipProvider>
               </div>
-
+              
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="icon"
+                    <Button 
+                      variant="outline" 
+                      size="icon" 
                       className={cn(
                         "h-9 w-9 border-gray-200 bg-white dark:border-zinc-700 dark:bg-zinc-800/50",
-                        statsVisible
-                          ? "text-blue-600 dark:text-blue-400"
+                        statsVisible 
+                          ? "text-blue-600 dark:text-blue-400" 
                           : "text-gray-500 dark:text-zinc-300"
                       )}
                       onClick={() => setStatsVisible(!statsVisible)}
@@ -836,9 +837,9 @@ const HomePage = () => {
               </TooltipProvider>
             </div>
           </div>
-
-          <Tabs
-            value={activeTab}
+          
+          <Tabs 
+            value={activeTab} 
             onValueChange={setActiveTab}
             className="mt-5"
           >
@@ -871,8 +872,8 @@ const HomePage = () => {
                   <p className="mx-auto mb-4 max-w-md text-gray-500 dark:text-zinc-300">
                     Không tìm thấy backup nào khớp với từ khóa "{searchTerm}"
                   </p>
-                  <Button
-                    variant="outline"
+                  <Button 
+                    variant="outline" 
                     onClick={() => setSearchTerm("")}
                     className="bg-white dark:bg-zinc-800"
                   >
@@ -886,7 +887,7 @@ const HomePage = () => {
                   <p className="mx-auto mb-4 max-w-md text-gray-500 dark:text-zinc-300">
                     Tải lên backup đầu tiên của bạn để bắt đầu
                   </p>
-                  <Button
+                  <Button 
                     onClick={handleCreateBackup}
                     disabled={isCreatingBackup}
                     className="bg-white dark:bg-zinc-800"
@@ -911,15 +912,15 @@ const HomePage = () => {
                   <p className="mx-auto mb-4 max-w-md text-gray-500 dark:text-zinc-300">
                     Chọn một tab khác để xem các backup
                   </p>
-                  <Button
-                    variant="outline"
+                  <Button 
+                    variant="outline" 
                     onClick={() => setActiveTab("all")}
                     className="bg-white dark:bg-zinc-800"
                   >
                     Xem tất cả backup
                   </Button>
                 </>
-              ) : null}
+              )}
             </div>
           ) : viewMode === "table" ? (
             // Table view with ScrollArea
@@ -936,7 +937,7 @@ const HomePage = () => {
                         {groupedBackups[date].length} file
                       </Badge>
                     </div>
-
+                    
                     <div className="overflow-x-auto">
                       <table className="w-full">
                         <tbody>
@@ -947,28 +948,29 @@ const HomePage = () => {
                             >
                               <td className="py-3 px-4 md:px-6">
                                 <div className="flex items-center gap-3">
-                                  <div className={`flex h-9 w-9 items-center justify-center rounded-full ${file.uploaded
-                                    ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400'
-                                    : 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400'
-                                    }`}>
+                                  <div className={`flex h-9 w-9 items-center justify-center rounded-full ${
+                                    file.uploaded 
+                                      ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' 
+                                      : 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400'
+                                  }`}>
                                     <FileArchive className="h-4 w-4" />
                                   </div>
                                   <div>
                                     <div className="font-medium text-gray-900 dark:text-zinc-100">{file.name}</div>
                                     <div className="mt-1 flex items-center gap-1 text-xs text-gray-500 dark:text-zinc-300">
                                       <Clock className="h-3 w-3" />
-                                      {new Date(file.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                                      {new Date(file.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'})}
                                     </div>
                                   </div>
                                 </div>
                               </td>
-
+                              
                               <td className="py-3 px-4 md:px-6">
                                 <div className="text-sm font-medium text-gray-700 dark:text-zinc-300">
                                   {formatFileSize(file.size)}
                                 </div>
                               </td>
-
+                              
                               <td className="py-3 px-4 md:px-6">
                                 {file.uploaded ? (
                                   <Badge className="bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300 border-green-200 dark:border-green-800/50">
@@ -987,7 +989,7 @@ const HomePage = () => {
                                   </Badge>
                                 )}
                               </td>
-
+                              
                               <td className="py-3 px-4 md:px-6 text-right">
                                 <div className="flex items-center justify-end space-x-1">
                                   <TooltipProvider>
@@ -1001,7 +1003,7 @@ const HomePage = () => {
                                           <Info className="h-4 w-4 text-gray-500 dark:text-zinc-300" />
                                         </Button>
                                       </DropdownMenuTrigger>
-
+                                      
                                       <DropdownMenuContent align="end" className="w-52">
                                         <DropdownMenuItem
                                           className="cursor-pointer flex items-center gap-2 text-sm"
@@ -1010,7 +1012,7 @@ const HomePage = () => {
                                           <ArrowDownToLine className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
                                           <span>Tải xuống</span>
                                         </DropdownMenuItem>
-
+                                        
                                         {file.uploaded && file.driveLink && (
                                           <DropdownMenuItem
                                             className="cursor-pointer flex items-center gap-2 text-sm"
@@ -1020,7 +1022,7 @@ const HomePage = () => {
                                             <span>Xem trên Google Drive</span>
                                           </DropdownMenuItem>
                                         )}
-
+                                        
                                         {!file.uploaded && (
                                           <DropdownMenuItem
                                             className="cursor-pointer flex items-center gap-2 text-sm"
@@ -1031,9 +1033,9 @@ const HomePage = () => {
                                             <span>Upload lên Google Drive</span>
                                           </DropdownMenuItem>
                                         )}
-
+                                        
                                         <DropdownMenuSeparator />
-
+                                        
                                         <DropdownMenuItem
                                           className="cursor-pointer flex items-center gap-2 text-sm text-red-600 focus:text-red-700 dark:text-red-500 dark:focus:text-red-400"
                                           onClick={() => handleDeleteBackup(file.id)}
@@ -1045,7 +1047,7 @@ const HomePage = () => {
                                       </DropdownMenuContent>
                                     </DropdownMenu>
                                   </TooltipProvider>
-
+                                  
                                   <TooltipProvider>
                                     <Tooltip>
                                       <TooltipTrigger asChild>
@@ -1063,7 +1065,7 @@ const HomePage = () => {
                                       </TooltipContent>
                                     </Tooltip>
                                   </TooltipProvider>
-
+                                  
                                   {!file.uploaded && (
                                     <TooltipProvider>
                                       <Tooltip>
@@ -1088,7 +1090,7 @@ const HomePage = () => {
                                       </Tooltip>
                                     </TooltipProvider>
                                   )}
-
+                                  
                                   <TooltipProvider>
                                     <Tooltip>
                                       <TooltipTrigger asChild>
@@ -1139,17 +1141,18 @@ const HomePage = () => {
                         {groupedBackups[date].length} file
                       </Badge>
                     </div>
-
+                    
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                       {groupedBackups[date].map((file) => (
                         <Card key={file.id} className="overflow-hidden border-gray-200 bg-white shadow-sm hover:shadow transition-shadow dark:border-zinc-800 dark:bg-zinc-900">
                           <CardContent className="p-0">
                             <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-zinc-800">
                               <div className="flex items-center gap-3">
-                                <div className={`flex h-8 w-8 items-center justify-center rounded-full ${file.uploaded
-                                  ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400'
-                                  : 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400'
-                                  }`}>
+                                <div className={`flex h-8 w-8 items-center justify-center rounded-full ${
+                                  file.uploaded 
+                                    ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' 
+                                    : 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400'
+                                }`}>
                                   <FileArchive className="h-4 w-4" />
                                 </div>
                                 {file.uploaded ? (
@@ -1189,7 +1192,7 @@ const HomePage = () => {
                                         <ArrowDownToLine className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
                                         <span>Tải xuống</span>
                                       </DropdownMenuItem>
-
+                                      
                                       {file.uploaded && file.driveLink && (
                                         <DropdownMenuItem
                                           className="cursor-pointer flex items-center gap-2 text-sm"
@@ -1199,7 +1202,7 @@ const HomePage = () => {
                                           <span>Xem trên Google Drive</span>
                                         </DropdownMenuItem>
                                       )}
-
+                                      
                                       {!file.uploaded && (
                                         <DropdownMenuItem
                                           className="cursor-pointer flex items-center gap-2 text-sm"
@@ -1210,9 +1213,9 @@ const HomePage = () => {
                                           <span>Upload lên Google Drive</span>
                                         </DropdownMenuItem>
                                       )}
-
+                                      
                                       <DropdownMenuSeparator />
-
+                                      
                                       <DropdownMenuItem
                                         className="cursor-pointer flex items-center gap-2 text-sm text-red-600 focus:text-red-700 dark:text-red-500 dark:focus:text-red-400"
                                         onClick={() => handleDeleteBackup(file.id)}
@@ -1226,20 +1229,20 @@ const HomePage = () => {
                                 </TooltipProvider>
                               </div>
                             </div>
-
+                            
                             <div className="px-4 py-3">
                               <div className="break-all font-medium text-gray-900 dark:text-zinc-100">{file.name}</div>
                               <div className="mt-2 flex items-center justify-between">
                                 <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-zinc-300">
                                   <Clock className="h-3 w-3" />
-                                  {new Date(file.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                  {new Date(file.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                                 </div>
                                 <div className="text-xs font-medium text-gray-700 dark:text-zinc-300">
                                   {formatFileSize(file.size)}
                                 </div>
                               </div>
                             </div>
-
+                            
                             <div className="flex divide-x divide-gray-100 border-t border-gray-100 dark:divide-zinc-800 dark:border-zinc-800">
                               <Button
                                 variant="ghost"
@@ -1249,7 +1252,7 @@ const HomePage = () => {
                                 <ArrowDownToLine className="mr-1 h-3.5 w-3.5" />
                                 Tải xuống
                               </Button>
-
+                              
                               {file.uploaded && file.driveLink ? (
                                 <Button
                                   variant="ghost"

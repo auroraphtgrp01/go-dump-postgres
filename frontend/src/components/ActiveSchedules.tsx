@@ -226,7 +226,7 @@ const ActiveSchedules = () => {
         );
       default:
         return (
-          <span className="inline-flex items-center rounded-md bg-gray-100 px-2.5 py-0.5 text-sm font-medium text-gray-800 dark:bg-gray-800/50 dark:text-gray-300">
+          <span className="inline-flex items-center rounded-md bg-gray-100 px-2.5 py-0.5 text-sm font-medium text-gray-800 dark:bg-zinc-800/50 dark:text-zinc-300">
             <span className="mr-1 h-1.5 w-1.5 rounded-full bg-gray-500"></span>
             {job.status}
           </span>
@@ -236,13 +236,13 @@ const ActiveSchedules = () => {
 
   // Render giao diện
   return (
-    <Card className="shadow-md border-gray-100 dark:border-gray-800">
-      <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-900/50 dark:to-gray-800/50 border-b border-gray-100 dark:border-gray-800">
+    <Card className="shadow-md border-gray-100 dark:border-zinc-800">
+      <CardHeader className="bg-gradient-to-r from-zinc-50 to-zinc-100 dark:from-zinc-900/50 dark:to-zinc-800/50 border-b border-gray-100 dark:border-zinc-800">
         <div className="flex items-center justify-between">
           <div className="flex items-center">
             <BarChart4 className="mr-2 h-5 w-5 text-blue-600 dark:text-blue-400" />
             <div>
-              <CardTitle className="text-gray-800 dark:text-gray-100">Lịch trình backup đang chạy</CardTitle>
+              <CardTitle className="text-gray-800 dark:text-zinc-100">Lịch trình backup đang chạy</CardTitle>
               <CardDescription>Danh sách và trạng thái các lịch backup đã thiết lập</CardDescription>
             </div>
           </div>
@@ -359,8 +359,8 @@ const ActiveSchedules = () => {
             </TableBody>
           </Table>
         ) : (
-          <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-            <TimerOff className="h-12 w-12 mx-auto mb-3 text-gray-300 dark:text-gray-600" />
+          <div className="text-center py-12 text-gray-500 dark:text-zinc-400">
+            <TimerOff className="h-12 w-12 mx-auto mb-3 text-gray-300 dark:text-zinc-600" />
             <p className="text-lg font-medium mb-1">Chưa có lịch backup nào được cấu hình</p>
             <p className="text-sm">Hãy tạo lịch backup mới bằng nút "Tạo lịch mới" phía trên</p>
           </div>
@@ -428,7 +428,7 @@ const ActiveSchedules = () => {
                             Đang chạy
                           </span>
                         ) : (
-                          <span className="inline-flex items-center rounded-md bg-gray-100 px-2.5 py-0.5 text-sm font-medium text-gray-800 dark:bg-gray-900/30 dark:text-gray-300">
+                          <span className="inline-flex items-center rounded-md bg-gray-100 px-2.5 py-0.5 text-sm font-medium text-gray-800 dark:bg-zinc-800/50 dark:text-zinc-300">
                             {log.status}
                           </span>
                         )}

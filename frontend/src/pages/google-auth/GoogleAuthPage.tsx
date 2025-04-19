@@ -33,18 +33,18 @@ const GoogleAuthPage = () => {
           'Authorization': 'Bearer ' + token
         }
       });
-      
+
       console.log('Kiểm tra trạng thái xác thực Google Drive:', response.data);
-      
+
       // Kiểm tra trạng thái xác thực từ phản hồi API
       const isAuthenticated = response.data.drive_status?.is_authenticated || false;
-      
+
       if (isAuthenticated) {
         // Đánh dấu xác thực thành công
         setAuthSuccess(true);
         setMessage('Xác thực Google Drive thành công!');
         Toast.success('Xác thực Google Drive thành công');
-        
+
         // Chuyển về trang chủ sau 3 giây
         setTimeout(() => {
           navigate('/');
@@ -75,29 +75,29 @@ const GoogleAuthPage = () => {
     if (code) {
       handleAuthCode(code);
     }
-    
+
     // Thêm event listener để lắng nghe message từ popup
     const handleMessage = (event: MessageEvent) => {
       if (event.data && event.data.type === 'GOOGLE_AUTH_SUCCESS') {
         console.log('Nhận thông báo xác thực Google thành công:', event.data);
-        
+
         // Dọn dẹp interval kiểm tra
         clearCheckInterval();
-        
+
         // Kiểm tra trạng thái xác thực thực tế từ API
         verifyAuthStatus();
       }
     };
-    
+
     window.addEventListener('message', handleMessage);
-    
+
     // Cleanup event listener khi component unmount
     return () => {
       window.removeEventListener('message', handleMessage);
       clearCheckInterval();
     };
   }, [navigate, searchParams]);
-  
+
   // Thiết lập interval kiểm tra khi popup đang mở
   useEffect(() => {
     // Nếu có cửa sổ popup và không có interval kiểm tra
@@ -111,10 +111,10 @@ const GoogleAuthPage = () => {
           verifyAuthStatus();
         }
       }, 1000);
-      
+
       checkIntervalRef.current = intervalId;
     }
-    
+
     // Cleanup interval khi component unmount hoặc khi authPopup thay đổi
     return () => {
       clearCheckInterval();
@@ -135,7 +135,7 @@ const GoogleAuthPage = () => {
       });
 
       const data = await response.json();
-      
+
       setAuthSuccess(data.success);
       setMessage(data.message || 'Xác thực hoàn tất');
 
@@ -168,7 +168,7 @@ const GoogleAuthPage = () => {
       });
 
       const data = await response.json();
-      
+
       if (data.success && data.auth_url) {
         // Thay vì chuyển trang, mở popup
         const popup = window.open(
@@ -176,9 +176,9 @@ const GoogleAuthPage = () => {
           'Google Auth',
           'width=600,height=700,menubar=no,toolbar=no,location=no'
         );
-        
+
         setAuthPopup(popup);
-        
+
         if (!popup) {
           // Nếu popup bị chặn, chuyển hướng thay thế
           Toast.error('Popup bị chặn. Vui lòng cho phép popup và thử lại');
@@ -202,9 +202,9 @@ const GoogleAuthPage = () => {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-slate-900 dark:to-indigo-950 p-4">
+    <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-zinc-900 dark:to-indigo-950 p-4">
       <div className="w-full max-w-lg">
-        <Card className="border-none shadow-xl backdrop-blur-sm bg-white/90 dark:bg-slate-900/90">
+        <Card className="border-none shadow-xl backdrop-blur-sm bg-white/90 dark:bg-zinc-900/90">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl font-bold">Xác thực Google Drive</CardTitle>
             <CardDescription>
@@ -226,19 +226,20 @@ const GoogleAuthPage = () => {
                   <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full opacity-20 animate-pulse"></div>
                   <div className="absolute inset-2 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center">
                     <svg className="w-12 h-12 text-indigo-600 dark:text-indigo-400" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M7 11V7C7 4.79086 8.79086 3 11 3H13C15.2091 3 17 4.79086 17 7V11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      <path d="M5 11H19V21H5V11Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      <circle cx="12" cy="16" r="1" fill="currentColor"/>
+                      <path d="M7 11V7C7 4.79086 8.79086 3 11 3H13C15.2091 3 17 4.79086 17 7V11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M5 11H19V21H5V11Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      <circle cx="12" cy="16" r="1" fill="currentColor" />
                     </svg>
                   </div>
                 </div>
-                
+
                 <p className="text-center mb-8 text-muted-foreground">
                   Để sử dụng tính năng sao lưu lên Google Drive, bạn cần xác thực và cấp quyền truy cập cho ứng dụng.
                 </p>
-                
-                <Button 
-                  onClick={handleGetAuthUrl} 
+
+                <Button
+                  variant='outline'
+                  onClick={handleGetAuthUrl}
                   className="w-full max-w-xs"
                   size="lg"
                 >
@@ -260,8 +261,8 @@ const GoogleAuthPage = () => {
                 <p className="text-sm text-center text-muted-foreground mb-4">
                   Bạn sẽ được chuyển hướng về trang chủ sau 3 giây...
                 </p>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={() => navigate('/')}
                   className="gap-2"
                 >
@@ -288,7 +289,7 @@ const GoogleAuthPage = () => {
                     <ArrowLeft className="w-4 h-4 mr-2" />
                     Quay lại
                   </Button>
-                  <Button onClick={handleGetAuthUrl}>
+                  <Button variant="outline" onClick={handleGetAuthUrl}>
                     Thử lại
                   </Button>
                 </div>

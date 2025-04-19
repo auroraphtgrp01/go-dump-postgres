@@ -44,7 +44,7 @@ const Navbar = () => {
   };
 
   return (
-    <header className="bg-white dark:bg-gray-950 shadow-sm sticky top-0 z-50">
+    <header className="bg-white dark:bg-zinc-900 shadow-sm sticky top-0 z-50">
       <div className="container mx-auto px-4 flex justify-between items-center h-16">
         <Link to="/" className="flex items-center gap-2">
           <Database className="h-6 w-6 text-primary" />
@@ -55,11 +55,11 @@ const Navbar = () => {
         <nav className="hidden md:flex items-center gap-6">
           {isLoggedIn && (
             <>
-              <Link to="/" className="text-sm font-medium text-gray-700 hover:text-primary dark:text-gray-300 dark:hover:text-primary transition flex items-center gap-1">
+              <Link to="/" className="text-sm font-medium text-gray-700 hover:text-primary dark:text-zinc-300 dark:hover:text-primary transition flex items-center gap-1">
                 <LayoutDashboard className="h-4 w-4" />
                 <span>Trang chủ</span>
               </Link>
-              <Link to="/settings" className="text-sm font-medium text-gray-700 hover:text-primary dark:text-gray-300 dark:hover:text-primary transition flex items-center gap-1">
+              <Link to="/settings" className="text-sm font-medium text-gray-700 hover:text-primary dark:text-zinc-300 dark:hover:text-primary transition flex items-center gap-1">
                 <Settings className="h-4 w-4" />
                 <span>Cấu hình</span>
               </Link>
@@ -105,13 +105,13 @@ const Navbar = () => {
 
       {/* Mobile Navigation */}
       {isOpen && (
-        <div className="md:hidden bg-white dark:bg-gray-950 border-t dark:border-gray-800 py-4 px-4">
+        <div className="md:hidden bg-white dark:bg-zinc-900 border-t dark:border-zinc-800 py-4 px-4">
           <nav className="flex flex-col space-y-3">
             {isLoggedIn && (
               <>
                 <Link
                   to="/"
-                  className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-primary dark:text-gray-300"
+                  className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-primary dark:text-zinc-300"
                   onClick={() => setIsOpen(false)}
                 >
                   <LayoutDashboard className="h-4 w-4" />
@@ -119,7 +119,7 @@ const Navbar = () => {
                 </Link>
                 <Link
                   to="/settings"
-                  className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-primary dark:text-gray-300"
+                  className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-primary dark:text-zinc-300"
                   onClick={() => setIsOpen(false)}
                 >
                   <Settings className="h-4 w-4" />
