@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: go-dump-postgres-app
+    restart: always
+    ports:
+      - "${WEBAPP_PORT:-8080}:8080"
+    volumes:
+      - ./backups:/app/backups
+      - ./backup:/app/backup
+      - ./data:/app/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      WEBAPP_PORT: ${WEBAPP_PORT:-8080}
+      JWT_SECRET: ${JWT_SECRET:-AeNQ9tTNpj6FkE8wM3nP4Dt3X6v2Y78K9Gw5yH3Jj2Ks4Mt7KpW2aPcFmX5R7T}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      FOLDER_DRIVE: ${FOLDER_DRIVE:-SHMS_Database_Backups}
+      CRON_SCHEDULE: ${CRON_SCHEDULE:-*/5 * * * *}
+      DB_SOURCE: /app/data/app.db
+      BACKUP_DIR: /app/backup
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge

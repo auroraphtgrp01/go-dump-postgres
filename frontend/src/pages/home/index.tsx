@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { BackupService } from "@/lib/http/api";
 
 // Interface cho Profile
 interface Profile {
@@ -465,7 +466,8 @@ const HomePage = () => {
                                 title="Tải xuống"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  // Xử lý tải xuống tại đây nếu cần
+                                  // Mở trang tải xuống trong tab mới
+                                  window.open(BackupService.downloadBackup(file.id), '_blank');
                                 }}
                               >
                                 <Download className="h-4 w-4" />

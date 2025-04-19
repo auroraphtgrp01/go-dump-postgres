@@ -1,4 +1,4 @@
-import axios, { AxiosRequestConfig, AxiosResponse, AxiosError } from 'axios';
+import axios, { AxiosResponse, AxiosError } from 'axios';
 
 // Create axios instance with default configs
 const axiosInstance = axios.create({
@@ -14,11 +14,11 @@ axiosInstance.interceptors.request.use(
   (config) => {
     // Lấy token từ localStorage khi có authentication
     const token = localStorage.getItem('auth_token');
-    
+
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    
+
     return config;
   },
   (error) => {
@@ -35,7 +35,7 @@ axiosInstance.interceptors.response.use(
     // Xử lý lỗi tập trung (401, 403, 500, etc.)
     if (error.response) {
       const { status } = error.response;
-      
+
       if (status === 401) {
         // Handle unauthorized
         localStorage.removeItem('auth_token');
@@ -43,12 +43,12 @@ axiosInstance.interceptors.response.use(
         // Có thể chuyển hướng đến trang đăng nhập
         window.location.href = '/auth/login';
       }
-      
+
       if (status === 403) {
         // Handle forbidden
       }
     }
-    
+
     return Promise.reject(error);
   }
 );

@@ -63,6 +63,10 @@ export const BackupService = {
 
   uploadToDrive: (id: string): Promise<AxiosResponse<ApiResponse<any>>> => {
     return axios.post(`/upload/${id}`);
+  },
+  
+  downloadBackup: (id: string): string => {
+    return `/download/${id}?token=${localStorage.getItem('token') || ''}`;
   }
 };
 

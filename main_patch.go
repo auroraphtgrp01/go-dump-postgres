@@ -189,16 +189,6 @@ func startWebApp(cfg *config.Config, port string) {
 	// Tạo handler
 	h := handlers.NewHandler(cfg)
 
-	// Middleware để debug request
-	router.Use(func(c *gin.Context) {
-		// Log request
-		fmt.Printf("Request: %s %s\n", c.Request.Method, c.Request.URL.Path)
-		// Tiếp tục xử lý
-		c.Next()
-		// Log response status
-		fmt.Printf("Response status: %d\n", c.Writer.Status())
-	})
-
 	// Cấu hình CORS
 	router.Use(func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
@@ -217,37 +207,19 @@ func startWebApp(cfg *config.Config, port string) {
 	// Cấu hình phục vụ frontend React
 	publicDir := "./public"
 	if _, err := os.Stat(publicDir); !os.IsNotExist(err) {
-		fmt.Printf("Thư mục public tồn tại: %s, kiểm tra index.html\n", publicDir)
-		indexHtmlPath := filepath.Join(publicDir, "index.html")
-		if _, err := os.Stat(indexHtmlPath); !os.IsNotExist(err) {
-			fmt.Printf("File index.html tồn tại tại: %s\n", indexHtmlPath)
-		} else {
-			fmt.Printf("ERROR: Không tìm thấy file index.html tại %s\n", indexHtmlPath)
-		}
-
 		// Phục vụ các tài nguyên tĩnh (JS, CSS, ảnh)
 		router.Static("/assets", filepath.Join(publicDir, "assets"))
-		router.StaticFile("/vite.svg", filepath.Join(publicDir, "vite.svg"))
 		router.StaticFile("/favicon.ico", filepath.Join(publicDir, "favicon.ico"))
-
-		// Thiết lập route gốc để phục vụ index.html
-		router.GET("/", func(c *gin.Context) {
-			fmt.Println("Truy cập path / - Phục vụ index.html")
-			c.File(indexHtmlPath)
-		})
 
 		// Xử lý SPA routing - trả về index.html cho các đường dẫn không tồn tại
 		router.NoRoute(func(c *gin.Context) {
 			// Chỉ phục vụ index.html nếu đường dẫn không bắt đầu bằng /api
 			path := c.Request.URL.Path
-			fmt.Printf("NoRoute handler được gọi cho path: %s\n", path)
 			if !strings.HasPrefix(path, "/api") {
-				fmt.Printf("Phục vụ index.html cho path: %s\n", path)
-				c.File(indexHtmlPath)
+				c.File(filepath.Join(publicDir, "index.html"))
 				return
 			}
 			// Nếu là API route không tồn tại, trả về 404
-			fmt.Printf("Trả về 404 cho API path: %s\n", path)
 			c.JSON(http.StatusNotFound, gin.H{"error": "API endpoint not found"})
 		})
 
@@ -309,7 +281,6 @@ func startWebApp(cfg *config.Config, port string) {
 	}
 
 	// Khởi động server
-	fmt.Printf("Server đang lắng nghe tại http://localhost:%s\n", port)
 	if err := router.Run(":" + port); err != nil {
 		log.Fatalf("Không thể khởi động server web: %v", err)
 	}

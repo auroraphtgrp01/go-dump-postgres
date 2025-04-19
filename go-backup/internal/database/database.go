@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"github.com/backup-cronjob/internal/config"
@@ -40,27 +41,77 @@ func InitDB(cfg *config.Config) error {
 		return fmt.Errorf("error pinging SQLite database: %w", err)
 	}
 
+	// Cố gắng tạo schema và các cấu hình
+	err = setupDatabase(cfg)
+	if err != nil {
+		// Nếu gặp lỗi, có thể là do schema cũ không tương thích
+		// Tạo lại database từ đầu
+		log.Printf("Gặp lỗi khi thiết lập database: %v. Đang thử tạo lại database...", err)
+		if recreateErr := recreateDatabase(cfg); recreateErr != nil {
+			return fmt.Errorf("không thể tạo lại database: %w", recreateErr)
+		}
+		// Thiết lập lại database sau khi tạo mới
+		if setupErr := setupDatabase(cfg); setupErr != nil {
+			return fmt.Errorf("không thể thiết lập lại database sau khi tạo mới: %w", setupErr)
+		}
+	}
+
+	log.Println("Database initialized successfully")
+	return nil
+}
+
+// setupDatabase thiết lập cơ sở dữ liệu
+func setupDatabase(cfg *config.Config) error {
 	// Tạo schema
-	if err = createSchema(); err != nil {
+	if err := createSchema(); err != nil {
 		return fmt.Errorf("error creating database schema: %w", err)
 	}
 
 	// Kiểm tra và tạo tài khoản admin nếu chưa tồn tại
-	if err = ensureAdminExists(cfg); err != nil {
+	if err := ensureAdminExists(cfg); err != nil {
 		return fmt.Errorf("error ensuring admin user exists: %w", err)
 	}
 
 	// Kiểm tra và tạo cấu hình mặc định nếu chưa tồn tại
-	if err = ensureConfigsExist(); err != nil {
+	if err := ensureConfigsExist(); err != nil {
 		return fmt.Errorf("error ensuring default configs exist: %w", err)
 	}
 
 	// Đảm bảo có ít nhất một profile mặc định
-	if err = EnsureDefaultProfile(); err != nil {
+	if err := EnsureDefaultProfile(); err != nil {
 		return fmt.Errorf("error ensuring default profile: %w", err)
 	}
 
-	log.Println("Database initialized successfully")
+	return nil
+}
+
+// recreateDatabase xóa và tạo lại database từ đầu
+func recreateDatabase(cfg *config.Config) error {
+	log.Println("Đang tạo lại database từ đầu...")
+
+	// Đóng kết nối hiện tại
+	if DB != nil {
+		DB.Close()
+	}
+
+	// Xóa file database cũ
+	if err := os.Remove(cfg.DBSource); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("không thể xóa file database cũ: %w", err)
+	}
+
+	// Kết nối lại đến database mới
+	var err error
+	DB, err = sql.Open("sqlite", cfg.DBSource)
+	if err != nil {
+		return fmt.Errorf("error connecting to new SQLite database: %w", err)
+	}
+
+	// Kiểm tra kết nối
+	if err = DB.Ping(); err != nil {
+		return fmt.Errorf("error pinging new SQLite database: %w", err)
+	}
+
+	log.Println("Đã tạo lại database thành công")
 	return nil
 }
 
@@ -114,7 +165,7 @@ func createSchema() error {
 		return err
 	}
 
-	// Tạo bảng profiles
+	// Tạo bảng profiles với tất cả các cột cần thiết
 	_, err = DB.Exec(`
 		CREATE TABLE IF NOT EXISTS profiles (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -125,6 +176,13 @@ func createSchema() error {
 			container_name TEXT NOT NULL,
 			db_name TEXT NOT NULL,
 			is_active BOOLEAN DEFAULT 1,
+			google_client_id TEXT DEFAULT '',
+			google_client_secret TEXT DEFAULT '',
+			backup_dir TEXT DEFAULT '',
+			cron_schedule TEXT DEFAULT '0 0 * * *',
+			backup_retention INTEGER DEFAULT 7,
+			upload_to_drive BOOLEAN DEFAULT 0,
+			folder_drive TEXT DEFAULT '',
 			created_at DATETIME NOT NULL,
 			updated_at DATETIME NOT NULL
 		)

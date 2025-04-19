@@ -1,0 +1,102 @@
+// startWebApp khởi động ứng dụng web
+func startWebApp(cfg *config.Config, port string) {
+	// Thiết lập Gin
+	router := gin.Default()
+
+	// Tạo handler
+	h := handlers.NewHandler(cfg)
+
+	// Cấu hình CORS
+	router.Use(func(c *gin.Context) {
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE")
+
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(204)
+			return
+		}
+
+		c.Next()
+	})
+
+	// Cấu hình static files cho frontend build
+	publicDir := "./public"
+	if _, err := os.Stat(publicDir); !os.IsNotExist(err) {
+		// Frontend build được tìm thấy, phục vụ nó
+		router.Static("/assets", publicDir+"/assets")
+		router.StaticFile("/favicon.ico", publicDir+"/favicon.ico")
+		
+		// SPA router - trả về index.html cho tất cả các route không có trong API
+		router.NoRoute(func(c *gin.Context) {
+			// Chỉ phục vụ index.html nếu đường dẫn không bắt đầu bằng /api
+			path := c.Request.URL.Path
+			if !strings.HasPrefix(path, "/api") {
+				c.File(publicDir + "/index.html")
+				return
+			}
+			// Nếu là API route không tồn tại, trả về 404
+			c.JSON(http.StatusNotFound, gin.H{"error": "Not found"})
+		})
+	} else {
+		// Sử dụng thư mục cũ nếu không tìm thấy frontend build
+		router.Static("/static", "./ui/static")
+		fmt.Println("Warning: Không tìm thấy thư mục build frontend ở " + publicDir)
+	}
+
+	// Các route xác thực API
+	router.POST("/login", h.LoginHandler)
+	router.POST("/logout", h.LogoutHandler)
+
+	// Thêm các route xác thực Google
+	router.GET("/auth", h.AuthHandler)
+	router.GET("/callback", h.AuthCallbackHandler)
+
+	// Thêm các route API có tiền tố /api
+	router.POST("/api/login", h.LoginHandler)
+	router.POST("/api/logout", h.LogoutHandler)
+	router.GET("/api/auth", h.AuthHandler)
+	router.GET("/api/auth/google/login", h.AuthHandler)
+	router.GET("/api/auth/url", h.GetAuthURLHandler)
+	router.POST("/api/auth/exchange", h.ExchangeAuthCodeHandler)
+	router.GET("/api/callback", h.AuthCallbackHandler)
+
+	// API routes - Các route cần xác thực
+	protected := router.Group("/api")
+	protected.Use(auth.AuthMiddleware())
+	{
+		protected.GET("/me", h.MeHandler)
+		protected.GET("/backups", h.GetBackupsHandler)
+		protected.DELETE("/backups/:id", h.DeleteBackupHandler)
+		protected.GET("/configs", h.GetConfigsHandler)
+		protected.POST("/configs", h.UpdateConfigsHandler)
+		protected.GET("/configs/:group", h.GetConfigsByGroupHandler)
+		protected.GET("/drive/status", h.CheckDriveStatusHandler)
+
+		// Quản lý profile database
+		protected.GET("/profiles", h.GetProfilesHandler)
+		protected.GET("/profiles/active", h.GetActiveProfileHandler)
+		protected.GET("/profiles/:id", h.GetProfileHandler)
+		protected.POST("/profiles", h.CreateProfileHandler)
+		protected.PUT("/profiles/:id", h.UpdateProfileHandler)
+		protected.DELETE("/profiles/:id", h.DeleteProfileHandler)
+		protected.POST("/profiles/:id/activate", h.SetActiveProfileHandler)
+	}
+
+	// Action routes - Các hành động cần xác thực
+	actions := router.Group("/")
+	actions.Use(auth.AuthMiddleware())
+	{
+		actions.POST("/dump", h.DumpHandler)
+		actions.POST("/upload-last", h.UploadLastHandler)
+		actions.POST("/upload-all", h.UploadAllHandler)
+		actions.POST("/upload/:id", h.UploadSingleHandler)
+		actions.GET("/download/:id", h.DownloadHandler)
+	}
+
+	// Khởi động server
+	if err := router.Run(":" + port); err != nil {
+		log.Fatalf("Không thể khởi động server web: %v", err)
+	}
+} 
