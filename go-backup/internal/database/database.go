@@ -187,6 +187,23 @@ func createSchema() error {
 			updated_at DATETIME NOT NULL
 		)
 	`)
+	if err != nil {
+		return err
+	}
+
+	// Tạo bảng job_logs để lưu trữ lịch sử chạy các job backup
+	_, err = DB.Exec(`
+		CREATE TABLE IF NOT EXISTS job_logs (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			profile_id INTEGER NOT NULL,
+			status TEXT NOT NULL,
+			start_time DATETIME NOT NULL,
+			end_time DATETIME,
+			backup_file TEXT,
+			message TEXT,
+			FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE
+		)
+	`)
 
 	return err
 }

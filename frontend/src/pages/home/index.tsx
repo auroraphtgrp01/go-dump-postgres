@@ -1,17 +1,15 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { isAuthenticated, syncAuthState } from "@/utils/auth";
 import Toast from "@/components/Toast";
-import { IOperationResult, IBackupFile } from "@/types";
+import { IOperationResult, IBackupFile, IProfile } from "@/types";
 import { formatFileSize } from "@/utils/helpers";
 import {
   Database,
-  CloudUpload,
   RefreshCw,
   Trash2,
-  Download,
   ExternalLink,
   FileArchive,
   CheckCircle2,
@@ -21,7 +19,6 @@ import {
   Search,
   Calendar,
   Clock,
-  Server,
   Filter,
   Loader2,
   HardDrive,
@@ -29,29 +26,32 @@ import {
   ArrowDownToLine,
   Upload,
   Archive,
-  ShieldCheck,
   Info,
   BarChart2,
   LayoutGrid,
   TableProperties,
+  AlarmClock
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
 import { BackupService } from "@/lib/http/api";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
-
-// Interface cho Profile
-interface Profile {
-  id: string;
-  name: string;
-  is_active: boolean;
-}
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import ScheduleSelector from "@/components/ScheduleSelector";
+import ActiveSchedules from "@/components/ActiveSchedules";
 
 // Transition animation classes
 const FADE_IN_ANIMATION = "animate-in fade-in duration-300";
@@ -66,7 +66,7 @@ const HomePage = () => {
   const [isCreatingBackup, setIsCreatingBackup] = useState(false);
   const [isUploading, setIsUploading] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
-  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [profiles, setProfiles] = useState<IProfile[]>([]);
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
   const [loadingProfiles, setLoadingProfiles] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -74,6 +74,12 @@ const HomePage = () => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [statsVisible, setStatsVisible] = useState(true);
   const [viewMode, setViewMode] = useState<"grid" | "table">("table");
+  
+  // Thêm state cho dialog lịch trình
+  const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
+  const [newScheduleName, setNewScheduleName] = useState('');
+  const [newScheduleCron, setNewScheduleCron] = useState('0 0 * * *');
+  const [isCreatingSchedule, setIsCreatingSchedule] = useState(false);
   
   const navigate = useNavigate();
 
@@ -130,7 +136,7 @@ const HomePage = () => {
           setProfiles(fetchedProfiles);
 
           // Set active profile as default, or first profile if none active
-          const activeProfile = fetchedProfiles.find((p: Profile) => p.is_active);
+          const activeProfile = fetchedProfiles.find((p: IProfile) => p.is_active);
           if (activeProfile) {
             setSelectedProfileId(activeProfile.id);
           } else if (fetchedProfiles.length > 0) {
@@ -329,6 +335,56 @@ const HomePage = () => {
     });
   };
 
+  // Thêm hàm tạo lịch mới từ ConfigPage
+  const handleCreateSchedule = async () => {
+    if (!newScheduleName.trim()) {
+      Toast.error('Vui lòng nhập tên lịch');
+      return;
+    }
+
+    if (!selectedProfileId) {
+      Toast.error('Vui lòng chọn một profile trước khi tạo lịch');
+      return;
+    }
+
+    setIsCreatingSchedule(true);
+    try {
+      const token = localStorage.getItem('auth_token');
+
+      const requestData = {
+        profile_id: selectedProfileId,
+        cron_schedule: newScheduleCron
+      };
+
+      const response = await fetch('/api/schedule/update', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token
+        },
+        body: JSON.stringify(requestData)
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        Toast.success('Tạo lịch mới thành công');
+        setNewScheduleName('');
+        setNewScheduleCron('0 0 * * *');
+        setIsScheduleDialogOpen(false);
+        // Làm mới danh sách lịch
+        document.dispatchEvent(new CustomEvent('refresh-schedules'));
+      } else {
+        Toast.error(data.message || 'Không thể tạo lịch');
+      }
+    } catch (error) {
+      console.error('Error creating schedule:', error);
+      Toast.error('Lỗi kết nối máy chủ');
+    } finally {
+      setIsCreatingSchedule(false);
+    }
+  };
+
   return (
     <div className="container max-w-screen-xl mx-auto px-4 py-6 sm:px-6 sm:py-8">
       {/* Header with refined design */}
@@ -364,6 +420,23 @@ const HomePage = () => {
                   Xác thực Google Drive
                 </Button>
               )}
+              
+              {/* Thêm nút lịch trình */}
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-indigo-200 bg-indigo-50/80 text-indigo-700 hover:bg-indigo-50 dark:border-indigo-800/50 dark:bg-indigo-900/10 dark:text-indigo-400 dark:hover:bg-indigo-900/20"
+                onClick={() => {
+                  if (!selectedProfileId) {
+                    Toast.warning('Vui lòng chọn một profile trước khi tạo lịch');
+                    return;
+                  }
+                  setIsScheduleDialogOpen(true);
+                }}
+              >
+                <AlarmClock className="mr-1.5 h-3.5 w-3.5" />
+                Quản lý lịch trình
+              </Button>
               
               <div className="flex gap-2">
                 <Select
@@ -434,6 +507,144 @@ const HomePage = () => {
           </div>
         </div>
       </div>
+
+      {/* Dialog lịch trình */}
+      <Dialog open={isScheduleDialogOpen} onOpenChange={(open) => {
+        setIsScheduleDialogOpen(open);
+        if (!open) {
+          // Reset form khi đóng dialog
+          setNewScheduleName('');
+          setNewScheduleCron('0 0 * * *');
+        }
+      }}>
+        <DialogContent className="sm:max-w-[1200px] max-h-[90vh] overflow-hidden flex flex-col bg-white dark:bg-gray-900">
+          <DialogHeader className="pb-4 border-b border-gray-100 dark:border-gray-800">
+            <DialogTitle className="flex items-center gap-3 text-indigo-700 dark:text-indigo-400">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900">
+                <AlarmClock className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+              </div>
+              Quản lý lịch backup tự động
+            </DialogTitle>
+            <DialogDescription>
+              Thiết lập và quản lý các lịch tự động backup database PostgreSQL
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="flex-1 overflow-auto py-6 px-1">
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                {/* Form tạo lịch mới */}
+                <div className="md:col-span-1 space-y-2">
+                  <div className="rounded-xl border border-gray-200 dark:border-gray-800 p-5 bg-white dark:bg-gray-900 shadow-sm">
+                    <div className="relative">
+                      <h3 className="text-base font-medium flex items-center gap-2 text-indigo-700 dark:text-indigo-400 mb-4 pb-3 border-b border-gray-100 dark:border-gray-800">
+                        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900">
+                          <Plus className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+                        </div>
+                        Tạo lịch backup mới
+                      </h3>
+                    
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="schedule-name" className="font-medium text-gray-700 dark:text-gray-300">
+                            Tên lịch
+                          </Label>
+                          <Input
+                            id="schedule-name"
+                            value={newScheduleName}
+                            onChange={e => setNewScheduleName(e.target.value)}
+                            placeholder="Backup hàng ngày"
+                            className="border-gray-200 dark:border-gray-700 mt-1"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label className="font-medium text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
+                            <Calendar className="h-4 w-4 text-indigo-500 dark:text-indigo-400" />
+                            Lịch trình
+                          </Label>
+                          <ScheduleSelector
+                            value={newScheduleCron}
+                            onChange={(value) => setNewScheduleCron(value)}
+                          />
+                        </div>
+                      
+                        <Button
+                          onClick={handleCreateSchedule}
+                          disabled={isCreatingSchedule || !newScheduleName.trim() || !selectedProfileId}
+                          className={`w-full mt-2 ${!newScheduleName.trim() || !selectedProfileId ? 'opacity-50 cursor-not-allowed' : ''} 
+                          bg-indigo-600 hover:bg-indigo-700 text-white`}
+                        >
+                          {isCreatingSchedule ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Đang tạo...
+                            </>
+                          ) : (
+                            <>
+                              <Plus className="mr-2 h-4 w-4" />
+                              Thêm lịch trình
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              
+                {/* Danh sách lịch trình */}
+                <div className="md:col-span-2 space-y-2">
+                  <div className="rounded-xl border border-gray-200 dark:border-gray-800 p-5 bg-white dark:bg-gray-900 shadow-sm h-full relative">
+                    <h3 className="text-base font-medium flex items-center gap-2 text-gray-800 dark:text-gray-300 mb-4 pb-3 border-b border-gray-100 dark:border-gray-800">
+                      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900">
+                        <AlarmClock className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                      </div>
+                      Lịch trình đang chạy
+                    </h3>
+                    <div className="max-h-[410px] overflow-y-auto pr-2 -mr-2">
+                      <ActiveSchedules />
+                    </div>
+                    
+                    {!selectedProfileId && (
+                      <div className="absolute inset-0 bg-white dark:bg-gray-900 flex items-center justify-center flex-col gap-2 rounded-xl z-10">
+                        <div className="h-14 w-14 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                          <Database className="h-7 w-7 text-gray-400 dark:text-gray-500" /> 
+                        </div>
+                        <p className="text-center text-gray-600 dark:text-gray-400 max-w-xs">
+                          Vui lòng chọn profile database trước khi tạo lịch trình backup
+                        </p>
+                        <Button
+                          variant="outline" 
+                          size="sm"
+                          className="mt-2 border-indigo-200 text-indigo-700 dark:border-indigo-800 dark:text-indigo-400"
+                          onClick={() => setIsScheduleDialogOpen(false)}
+                        >
+                          Đóng và chọn profile
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <DialogFooter className="pt-4 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setIsScheduleDialogOpen(false);
+                setIsCreatingSchedule(false);
+                setNewScheduleName('');
+                setNewScheduleCron('0 0 * * *');
+              }}
+              className="border-gray-200 dark:border-gray-700"
+            >
+              Đóng
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Operation result notification */}
       {lastOperation && (

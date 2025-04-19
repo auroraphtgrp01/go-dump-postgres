@@ -17,6 +17,7 @@ import (
 	"github.com/backup-cronjob/internal/dbdump"
 	"github.com/backup-cronjob/internal/drive"
 	"github.com/backup-cronjob/internal/models"
+	"github.com/backup-cronjob/internal/scheduler"
 	"github.com/gin-gonic/gin"
 )
 
@@ -25,10 +26,11 @@ type Handler struct {
 	Config         *config.Config
 	DatabaseDumper *dbdump.DatabaseDumper
 	DriveUploader  *drive.DriveUploader
+	Scheduler      *scheduler.Scheduler
 }
 
 // NewHandler tạo instance mới của Handler
-func NewHandler(cfg *config.Config) *Handler {
+func NewHandler(cfg *config.Config, scheduler *scheduler.Scheduler) *Handler {
 	// Khởi tạo authentication
 	auth.Init(cfg)
 
@@ -41,6 +43,7 @@ func NewHandler(cfg *config.Config) *Handler {
 		Config:         cfg,
 		DatabaseDumper: dbdump.NewDatabaseDumper(cfg),
 		DriveUploader:  drive.NewDriveUploader(cfg),
+		Scheduler:      scheduler,
 	}
 }
 
@@ -858,5 +861,281 @@ func (h *Handler) DeleteBackupHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": fmt.Sprintf("Đã xóa backup %s thành công", targetBackup.Name),
+	})
+}
+
+// GetScheduleOptionsHandler trả về các tùy chọn lịch trình
+func (h *Handler) GetScheduleOptionsHandler(c *gin.Context) {
+	options := models.GetScheduleOptions()
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"options": options,
+	})
+}
+
+// GetActiveJobsHandler trả về danh sách các công việc backup đang chạy
+func (h *Handler) GetActiveJobsHandler(c *gin.Context) {
+	jobs := h.Scheduler.GetActiveJobs()
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"jobs":    jobs,
+	})
+}
+
+// UpdateScheduleHandler cập nhật lịch backup cho profile
+func (h *Handler) UpdateScheduleHandler(c *gin.Context) {
+	var req struct {
+		ProfileID    int64  `json:"profile_id" binding:"required"`
+		CronSchedule string `json:"cron_schedule"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   fmt.Sprintf("Dữ liệu không hợp lệ: %v", err),
+		})
+		return
+	}
+
+	// Lấy thông tin profile
+	profile, err := database.GetProfileByID(req.ProfileID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"error":   fmt.Sprintf("Không tìm thấy profile với ID %d: %v", req.ProfileID, err),
+		})
+		return
+	}
+
+	// Cập nhật lịch trình
+	profile.CronSchedule = req.CronSchedule
+	if err := database.UpdateProfile(*profile); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   fmt.Sprintf("Không thể cập nhật profile: %v", err),
+		})
+		return
+	}
+
+	// Cập nhật lịch trình trong scheduler
+	if req.CronSchedule == "" {
+		// Nếu lịch rỗng, xóa job
+		h.Scheduler.RemoveJob(req.ProfileID)
+	} else {
+		// Thêm hoặc cập nhật job
+		if err := h.Scheduler.AddJob(req.ProfileID, req.CronSchedule, profile.Name); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"error":   fmt.Sprintf("Không thể thêm lịch backup: %v", err),
+			})
+			return
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": fmt.Sprintf("Đã cập nhật lịch backup cho profile %s", profile.Name),
+	})
+}
+
+// DeleteScheduleHandler xóa lịch backup của profile
+func (h *Handler) DeleteScheduleHandler(c *gin.Context) {
+	var req struct {
+		ProfileID int64 `json:"profile_id" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   fmt.Sprintf("Dữ liệu không hợp lệ: %v", err),
+		})
+		return
+	}
+
+	// Lấy thông tin profile
+	profile, err := database.GetProfileByID(req.ProfileID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"error":   fmt.Sprintf("Không tìm thấy profile với ID %d: %v", req.ProfileID, err),
+		})
+		return
+	}
+
+	// Xóa job từ scheduler
+	h.Scheduler.RemoveJob(req.ProfileID)
+
+	// Cập nhật lịch trình trong cơ sở dữ liệu
+	profile.CronSchedule = ""
+	if err := database.UpdateProfile(*profile); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   fmt.Sprintf("Không thể cập nhật profile: %v", err),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": fmt.Sprintf("Đã xóa lịch backup cho profile %s", profile.Name),
+	})
+}
+
+// PauseScheduleHandler tạm dừng một lịch backup
+func (h *Handler) PauseScheduleHandler(c *gin.Context) {
+	var req struct {
+		ProfileID int64 `json:"profile_id" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   fmt.Sprintf("Dữ liệu không hợp lệ: %v", err),
+		})
+		return
+	}
+
+	// Lấy thông tin profile
+	profile, err := database.GetProfileByID(req.ProfileID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"error":   fmt.Sprintf("Không tìm thấy profile với ID %d: %v", req.ProfileID, err),
+		})
+		return
+	}
+
+	// Tạm dừng job trong scheduler
+	if err := h.Scheduler.PauseJob(req.ProfileID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   fmt.Sprintf("Không thể tạm dừng lịch backup: %v", err),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": fmt.Sprintf("Đã tạm dừng lịch backup cho profile %s", profile.Name),
+	})
+}
+
+// ResumeScheduleHandler tiếp tục một lịch backup đã tạm dừng
+func (h *Handler) ResumeScheduleHandler(c *gin.Context) {
+	var req struct {
+		ProfileID int64 `json:"profile_id" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   fmt.Sprintf("Dữ liệu không hợp lệ: %v", err),
+		})
+		return
+	}
+
+	// Lấy thông tin profile
+	profile, err := database.GetProfileByID(req.ProfileID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"error":   fmt.Sprintf("Không tìm thấy profile với ID %d: %v", req.ProfileID, err),
+		})
+		return
+	}
+
+	// Tiếp tục chạy job trong scheduler
+	if err := h.Scheduler.ResumeJob(req.ProfileID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   fmt.Sprintf("Không thể tiếp tục lịch backup: %v", err),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": fmt.Sprintf("Đã tiếp tục lịch backup cho profile %s", profile.Name),
+	})
+}
+
+// GetJobLogsHandler trả về lịch sử chạy job của một profile
+func (h *Handler) GetJobLogsHandler(c *gin.Context) {
+	profileID := c.Param("id")
+	if profileID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Thiếu ID profile",
+		})
+		return
+	}
+
+	id, err := strconv.ParseInt(profileID, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   fmt.Sprintf("ID profile không hợp lệ: %v", err),
+		})
+		return
+	}
+
+	// Mặc định lấy 20 bản ghi gần nhất
+	limit := 20
+	if limitStr := c.Query("limit"); limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
+			limit = l
+		}
+	}
+
+	logs, err := database.GetJobLogsByProfile(id, limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   fmt.Sprintf("Không thể lấy lịch sử job: %v", err),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"logs":    logs,
+	})
+}
+
+// RunBackupNowHandler thực hiện backup ngay lập tức
+func (h *Handler) RunBackupNowHandler(c *gin.Context) {
+	var req struct {
+		ProfileID int64 `json:"profile_id" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   fmt.Sprintf("Dữ liệu không hợp lệ: %v", err),
+		})
+		return
+	}
+
+	// Kiểm tra profile tồn tại
+	profile, err := database.GetProfileByID(req.ProfileID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"error":   fmt.Sprintf("Không tìm thấy profile với ID %d: %v", req.ProfileID, err),
+		})
+		return
+	}
+
+	// Thực hiện backup ngay lập tức
+	go func() {
+		err := h.Scheduler.RunBackupNow(req.ProfileID)
+		if err != nil {
+			log.Printf("Lỗi khi thực hiện backup ngay lập tức cho profile %s: %v", profile.Name, err)
+		}
+	}()
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": fmt.Sprintf("Đã bắt đầu thực hiện backup cho profile %s", profile.Name),
 	})
 }

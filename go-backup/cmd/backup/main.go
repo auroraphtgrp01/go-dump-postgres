@@ -15,6 +15,7 @@ import (
 	"github.com/backup-cronjob/internal/dbdump"
 	"github.com/backup-cronjob/internal/drive"
 	"github.com/backup-cronjob/internal/handlers"
+	"github.com/backup-cronjob/internal/scheduler"
 	"github.com/gin-gonic/gin"
 )
 
@@ -186,8 +187,17 @@ func startWebApp(cfg *config.Config, port string) {
 	// Thiết lập Gin
 	router := gin.Default()
 
-	// Tạo handler
-	h := handlers.NewHandler(cfg)
+	// Khởi tạo DriveUploader
+	uploader := drive.NewDriveUploader(cfg)
+
+	// Khởi tạo Scheduler
+	backupScheduler := scheduler.NewScheduler(cfg, uploader)
+	backupScheduler.Start()
+	// Đảm bảo dừng scheduler khi ứng dụng kết thúc
+	defer backupScheduler.Stop()
+
+	// Tạo handler, truyền thêm scheduler
+	h := handlers.NewHandler(cfg, backupScheduler)
 
 	// Middleware để debug request
 	router.Use(func(c *gin.Context) {
@@ -295,6 +305,16 @@ func startWebApp(cfg *config.Config, port string) {
 		protected.PUT("/profiles/:id", h.UpdateProfileHandler)
 		protected.DELETE("/profiles/:id", h.DeleteProfileHandler)
 		protected.POST("/profiles/:id/activate", h.SetActiveProfileHandler)
+
+		// Route mới cho tính năng lập lịch backup tự động
+		protected.GET("/schedule/options", h.GetScheduleOptionsHandler)
+		protected.GET("/schedule/jobs", h.GetActiveJobsHandler)
+		protected.POST("/schedule/update", h.UpdateScheduleHandler)
+		protected.POST("/schedule/run-now", h.RunBackupNowHandler)
+		protected.POST("/schedule/delete", h.DeleteScheduleHandler)
+		protected.POST("/schedule/pause", h.PauseScheduleHandler)
+		protected.POST("/schedule/resume", h.ResumeScheduleHandler)
+		protected.GET("/schedule/logs/:id", h.GetJobLogsHandler)
 	}
 
 	// Action routes - Các hành động cần xác thực

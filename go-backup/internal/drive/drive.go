@@ -72,11 +72,23 @@ func (d *DriveUploader) Init() error {
 
 // GetOAuthConfig trả về cấu hình OAuth2
 func (d *DriveUploader) GetOAuthConfig() *oauth2.Config {
+	// Xác định RedirectURL dựa trên biến môi trường DOMAIN_HOST
+	var redirectURL string
+	domainHost := os.Getenv("DOMAIN_HOST")
+
+	if domainHost != "" {
+		// Trường hợp có biến môi trường DOMAIN_HOST
+		redirectURL = fmt.Sprintf("https://%s/callback", domainHost)
+	} else {
+		// Trường hợp không có biến môi trường, sử dụng localhost
+		redirectURL = fmt.Sprintf("http://localhost:%s/callback", d.Config.WebAppPort)
+	}
+
 	return &oauth2.Config{
 		ClientID:     d.Config.GoogleClientID,
 		ClientSecret: d.Config.GoogleClientSecret,
 		Scopes:       []string{drive.DriveFileScope},
-		RedirectURL:  fmt.Sprintf("http://localhost:%s/callback", d.Config.WebAppPort),
+		RedirectURL:  redirectURL,
 		Endpoint:     google.Endpoint,
 	}
 }

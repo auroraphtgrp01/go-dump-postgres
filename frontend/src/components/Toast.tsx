@@ -11,7 +11,7 @@ const Toast = {
   success: (content: string, duration = 3) => {
     return toast.success(content, {
       position: "top-right",
-      autoClose: duration * 1000,
+      autoClose: duration * 500,
       hideProgressBar: false,
       closeOnClick: true,
       pauseOnHover: true,

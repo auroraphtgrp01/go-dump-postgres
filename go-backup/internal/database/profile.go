@@ -145,6 +145,33 @@ func GetProfile(id int64) (models.DatabaseProfile, error) {
 	return profile, err
 }
 
+// GetProfileByID lấy thông tin profile theo ID
+func GetProfileByID(id int64) (*models.DatabaseProfile, error) {
+	var profile models.DatabaseProfile
+	err := DB.QueryRow(`
+		SELECT id, name, description, db_user, db_password, container_name, db_name, 
+			is_active, google_client_id, google_client_secret, backup_dir, 
+			cron_schedule, backup_retention, upload_to_drive, folder_drive, 
+			created_at, updated_at
+		FROM profiles
+		WHERE id = ?
+	`, id).Scan(
+		&profile.ID, &profile.Name, &profile.Description,
+		&profile.DBUser, &profile.DBPassword, &profile.ContainerName, &profile.DBName,
+		&profile.IsActive, &profile.GoogleClientID, &profile.GoogleClientSecret, &profile.BackupDir,
+		&profile.CronSchedule, &profile.BackupRetention, &profile.UploadToDrive, &profile.FolderDrive,
+		&profile.CreatedAt, &profile.UpdatedAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("không tìm thấy profile với ID %d", id)
+		}
+		return nil, err
+	}
+
+	return &profile, nil
+}
+
 // CreateProfile tạo một profile mới
 func CreateProfile(profile models.DatabaseProfile) (int64, error) {
 	now := time.Now()
