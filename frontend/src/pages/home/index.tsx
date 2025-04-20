@@ -538,17 +538,13 @@ const HomePage = () => {
 
   return (
     <div className="container max-w-screen-xl mx-auto px-4 py-6 sm:px-6 sm:py-8">
-      {/* Header với thiết kế tinh tế và sáng tạo hơn */}
-      <div className="relative mb-8 overflow-hidden rounded-xl bg-gradient-to-r from-blue-50 via-indigo-50/30 to-purple-50/40 dark:from-zinc-900/80 dark:via-indigo-950/20 dark:to-purple-950/20 shadow-lg border border-blue-100/90 dark:border-blue-900/30">
-        <div className="absolute right-0 top-0 h-40 w-40 -translate-y-1/4 translate-x-1/4 rounded-full bg-blue-200/50 dark:bg-blue-500/10 blur-3xl"></div>
-        <div className="absolute left-1/4 bottom-0 h-32 w-32 translate-y-1/3 rounded-full bg-indigo-300/40 dark:bg-indigo-600/10 blur-3xl"></div>
-        <div className="absolute left-0 top-0 h-24 w-24 -translate-x-1/4 -translate-y-1/4 rounded-full bg-purple-200/30 dark:bg-purple-600/10 blur-2xl"></div>
-
-        <div className="relative z-10 px-6 py-5">
+      {/* Header đơn giản và đồng màu cho darkmode sử dụng màu zinc */}
+      <div className="mb-8 overflow-hidden rounded-xl bg-zinc-900 dark:bg-zinc-900 shadow-lg border border-zinc-800 dark:border-zinc-800">
+        <div className="px-6 py-5">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             {/* Logo và thông tin tài khoản Google Drive */}
             <div className="flex items-center gap-4">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 dark:from-blue-600 dark:to-indigo-700 shadow-md shadow-blue-500/20 dark:shadow-blue-900/30 ring-2 ring-white/20 dark:ring-blue-900/30">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-blue-600 dark:bg-blue-600 shadow-md">
                 <Database className="h-7 w-7 text-white" />
               </div>
               
@@ -557,40 +553,40 @@ const HomePage = () => {
               )}
               
               {!needAuth && !isLoadingDriveInfo && driveInfo && (
-                <div className={`flex-shrink-0 flex items-center gap-3 p-2.5 rounded-xl bg-white/70 dark:bg-zinc-900/60 border border-blue-100/80 dark:border-blue-900/30 shadow-sm backdrop-blur-sm ${FADE_IN_ANIMATION}`}>
+                <div className={`flex-shrink-0 flex items-center gap-3 p-2.5 rounded-xl bg-zinc-800 dark:bg-zinc-800 border border-zinc-700 dark:border-zinc-700 shadow-sm ${FADE_IN_ANIMATION}`}>
                   <div className="flex items-center gap-2.5">
                     {driveInfo.picture ? (
                       <img 
                         src={driveInfo.picture} 
                         alt="Avatar" 
-                        className="h-11 w-11 rounded-full object-cover border-2 border-blue-200 dark:border-blue-800 ring-2 ring-white/60 dark:ring-zinc-800/80" 
+                        className="h-11 w-11 rounded-full object-cover border-2 border-zinc-700 dark:border-zinc-700" 
                         loading="lazy"
                       />
                     ) : (
-                      <div className="h-11 w-11 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900 dark:to-indigo-900 flex items-center justify-center ring-2 ring-white/60 dark:ring-zinc-800/80">
-                        <User className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                      <div className="h-11 w-11 rounded-full bg-zinc-700 dark:bg-zinc-700 flex items-center justify-center">
+                        <User className="h-5 w-5 text-blue-400 dark:text-blue-400" />
                       </div>
                     )}
                     <div>
-                      <div className="text-sm font-medium text-blue-800 dark:text-blue-300">{driveInfo.name}</div>
-                      <div className="text-xs text-gray-600 dark:text-gray-400">{driveInfo.email}</div>
+                      <div className="text-sm font-medium text-zinc-200 dark:text-zinc-200">{driveInfo.name}</div>
+                      <div className="text-xs text-zinc-400 dark:text-zinc-400">{driveInfo.email}</div>
                     </div>
                   </div>
                   
-                  <div className="flex flex-col justify-center pl-2 border-l border-gray-200 dark:border-gray-700 ml-1">
+                  <div className="flex flex-col justify-center pl-2 border-l border-zinc-700 dark:border-zinc-700 ml-1">
                     <div className="flex items-center gap-1.5 text-xs mb-1">
-                      <div className="flex h-4 w-4 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/70">
-                        <Cloud className="h-2.5 w-2.5 text-blue-600 dark:text-blue-400" />
+                      <div className="flex h-4 w-4 items-center justify-center rounded-full bg-zinc-700 dark:bg-zinc-700">
+                        <Cloud className="h-2.5 w-2.5 text-blue-400 dark:text-blue-400" />
                       </div>
                       <div className="flex gap-1">
-                        <span className="whitespace-nowrap font-medium">{formatStorageSize(driveInfo.quota.used)}</span>
-                        <span className="text-gray-400 dark:text-gray-500">/</span>
-                        <span className="whitespace-nowrap">{formatStorageSize(driveInfo.quota.limit)}</span>
+                        <span className="whitespace-nowrap font-medium text-zinc-300 dark:text-zinc-300">{formatStorageSize(driveInfo.quota.used)}</span>
+                        <span className="text-zinc-500 dark:text-zinc-500">/</span>
+                        <span className="whitespace-nowrap text-zinc-400 dark:text-zinc-400">{formatStorageSize(driveInfo.quota.limit)}</span>
                       </div>
                     </div>
                     <Progress 
                       value={(driveInfo.quota.used / driveInfo.quota.limit) * 100} 
-                      className="h-1.5 w-32 rounded-full" 
+                      className="h-1.5 w-32 rounded-full bg-zinc-700 dark:bg-zinc-700" 
                     />
                   </div>
                   
@@ -598,7 +594,7 @@ const HomePage = () => {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7 rounded-full text-gray-500 hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400"
+                      className="h-7 w-7 rounded-full text-zinc-400 hover:text-blue-400 dark:text-zinc-400 dark:hover:text-blue-400"
                       onClick={fetchDriveInfo}
                       disabled={isLoadingDriveInfo}
                       title="Làm mới thông tin"
@@ -609,7 +605,7 @@ const HomePage = () => {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7 rounded-full text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400"
+                      className="h-7 w-7 rounded-full text-zinc-400 hover:text-red-400 dark:text-zinc-400 dark:hover:text-red-400"
                       onClick={handleDisconnectDrive}
                       disabled={isDriveDisconnecting}
                       title="Gỡ liên kết Google Drive"
@@ -631,7 +627,7 @@ const HomePage = () => {
                 <Button
                   size="sm"
                   variant="outline"
-                  className="h-10 px-4 border-amber-200 bg-amber-50/90 text-amber-700 hover:bg-amber-50 dark:border-amber-800/50 dark:bg-amber-900/30 dark:text-amber-400 dark:hover:bg-amber-900/40 shadow-sm backdrop-blur-sm"
+                  className="h-10 px-4 border-zinc-700 bg-zinc-800 text-amber-400 hover:bg-zinc-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-amber-400 dark:hover:bg-zinc-700"
                   onClick={() => navigate('/google-auth')}
                 >
                   <Shield className="mr-1.5 h-3.5 w-3.5" />
@@ -643,7 +639,7 @@ const HomePage = () => {
               <Button
                 size="sm"
                 variant="outline"
-                className="h-10 px-4 border-indigo-200 bg-indigo-50/90 text-indigo-700 hover:bg-indigo-50 dark:border-indigo-800/50 dark:bg-indigo-900/30 dark:text-indigo-400 dark:hover:bg-indigo-900/40 shadow-sm backdrop-blur-sm"
+                className="h-10 px-4 border-zinc-700 bg-zinc-800 text-indigo-400 hover:bg-zinc-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-indigo-400 dark:hover:bg-zinc-700"
                 onClick={() => {
                   if (!selectedProfileId) {
                     Toast.warning('Vui lòng chọn một profile trước khi tạo lịch');
@@ -664,7 +660,7 @@ const HomePage = () => {
                   disabled={loadingProfiles}
                 >
                   <SelectTrigger
-                    className="h-10 w-[200px] border-blue-200 bg-white/80 text-sm dark:border-blue-800/50 dark:bg-blue-950/40 shadow-sm backdrop-blur-sm"
+                    className="h-10 w-[200px] border-zinc-700 bg-zinc-800 text-sm text-zinc-200 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
                   >
                     <SelectValue placeholder={
                       loadingProfiles
@@ -683,7 +679,7 @@ const HomePage = () => {
                         <div className="flex items-center">
                           <span>{profile.name}</span>
                           {profile.is_active && (
-                            <Badge className="ml-2 h-4 px-1 py-0.5 text-[10px] font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                            <Badge className="ml-2 h-4 px-1 py-0.5 text-[10px] font-medium bg-green-900 text-green-400 dark:bg-green-900 dark:text-green-400">
                               Active
                             </Badge>
                           )}
@@ -696,7 +692,7 @@ const HomePage = () => {
                 <div className="flex items-center gap-2.5">
                   <Button
                     size="sm"
-                    className="h-10 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md font-medium"
+                    className="h-10 bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-600 dark:hover:bg-blue-700 dark:text-white shadow-md font-medium"
                     onClick={handleCreateBackup}
                     disabled={isCreatingBackup || !selectedProfileId || loadingProfiles}
                   >
@@ -716,7 +712,7 @@ const HomePage = () => {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-10 w-10 p-0 flex items-center justify-center border-blue-200 bg-white/80 text-blue-700 hover:bg-blue-50 dark:border-blue-800/50 dark:bg-blue-950/40 dark:text-blue-400 dark:hover:bg-blue-900/40 shadow-md backdrop-blur-sm"
+                    className="h-10 w-10 p-0 flex items-center justify-center border-zinc-700 bg-zinc-800 text-zinc-200 hover:bg-zinc-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700 shadow-md"
                     onClick={fetchBackupFiles}
                     disabled={isSyncing}
                     title="Làm mới danh sách backup"
