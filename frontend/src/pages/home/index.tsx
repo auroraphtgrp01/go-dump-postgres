@@ -48,7 +48,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle
 } from "@/components/ui/dialog";
@@ -139,7 +138,7 @@ const HomePage = () => {
       // Load backup files and profiles
       fetchBackupFiles();
       fetchProfiles();
-      
+
       // Fetch Google Drive info if authenticated
       if (isAuth) {
         fetchDriveInfo();
@@ -163,11 +162,11 @@ const HomePage = () => {
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, [navigate]);
-  
+
   // Tự động refresh thông tin Google Drive mỗi 5 phút
   useEffect(() => {
     if (needAuth) return;
-    
+
     // Tự động làm mới thông tin Google Drive mỗi 5 phút
     const driveInfoRefreshInterval = setInterval(() => {
       if (!needAuth && !isLoadingDriveInfo) {
@@ -175,7 +174,7 @@ const HomePage = () => {
         fetchDriveInfo();
       }
     }, 5 * 60 * 1000); // 5 phút
-    
+
     // Cleanup interval khi component unmount
     return () => {
       clearInterval(driveInfoRefreshInterval);
@@ -257,12 +256,12 @@ const HomePage = () => {
     try {
       setIsLoadingDriveInfo(true);
       console.log("Đang tải thông tin Google Drive...");
-      
+
       // Thêm độ trễ nhẹ để hiển thị skeleton loading (chỉ trong môi trường phát triển)
       if (import.meta.env.DEV) {
         await new Promise(resolve => setTimeout(resolve, 800));
       }
-      
+
       const response = await GoogleDriveService.getDriveInfo();
       if (response.data.success) {
         setDriveInfo(response.data.data);
@@ -275,7 +274,7 @@ const HomePage = () => {
     } catch (error) {
       console.error("Lỗi kết nối khi tải thông tin Google Drive:", error);
       setDriveInfo(null);
-      
+
       // Nếu lỗi là do chưa xác thực
       if (axios.isAxiosError(error) && error.response?.status === 401) {
         setNeedAuth(true);
@@ -290,14 +289,14 @@ const HomePage = () => {
     if (!window.confirm('Bạn có chắc chắn muốn gỡ liên kết với Google Drive không?')) {
       return;
     }
-    
+
     try {
       setIsDriveDisconnecting(true);
       console.log("Đang gửi yêu cầu gỡ liên kết Google Drive...");
-      
+
       const response = await GoogleDriveService.disconnectDrive();
       console.log("Kết quả gỡ liên kết:", response.data);
-      
+
       if (response.data.success) {
         Toast.success('Đã gỡ liên kết Google Drive thành công');
         setDriveInfo(null);
@@ -307,7 +306,7 @@ const HomePage = () => {
       }
     } catch (error) {
       console.error('Lỗi khi gỡ liên kết Google Drive:', error);
-      
+
       // Kiểm tra lỗi cụ thể
       let errorMessage = 'Lỗi kết nối máy chủ';
       if (axios.isAxiosError(error)) {
@@ -317,7 +316,7 @@ const HomePage = () => {
           errorMessage = error.response.data.message;
         }
       }
-      
+
       Toast.error(errorMessage);
     } finally {
       setIsDriveDisconnecting(false);
@@ -330,12 +329,12 @@ const HomePage = () => {
     const units = ['KB', 'MB', 'GB', 'TB'];
     let size = bytes / 1024;
     let unitIndex = 0;
-    
+
     while (size >= 1024 && unitIndex < units.length - 1) {
       size /= 1024;
       unitIndex++;
     }
-    
+
     return size.toFixed(2) + ' ' + units[unitIndex];
   };
 
@@ -539,73 +538,73 @@ const HomePage = () => {
   return (
     <div className="container max-w-screen-xl mx-auto px-4 py-6 sm:px-6 sm:py-8">
       {/* Header đơn giản và đồng màu cho darkmode sử dụng màu zinc */}
-      <div className="mb-8 overflow-hidden rounded-xl bg-zinc-900 dark:bg-zinc-900 shadow-lg border border-zinc-800 dark:border-zinc-800">
-        <div className="px-6 py-5">
-          <div className="flex items-center justify-between gap-4 flex-wrap">
+      <div className="mb-8 overflow-hidden rounded-xl bg-white dark:bg-zinc-900 shadow-lg border border-zinc-200 dark:border-zinc-800">
+        <div className="px-4 py-4 sm:px-6 sm:py-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             {/* Logo và thông tin tài khoản Google Drive */}
-            <div className="flex items-center gap-4">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-blue-600 dark:bg-blue-600 shadow-md">
-                <Database className="h-7 w-7 text-white" />
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+              <div className="flex h-12 w-12 sm:h-14 sm:w-14 sm:hidden shrink-0 items-center justify-center rounded-xl bg-blue-600 dark:bg-blue-600 shadow-md">
+                <Database className="h-6 w-6 sm:h-7 sm:w-7 text-white" />
               </div>
-              
+
               {!needAuth && isLoadingDriveInfo && (
                 <DriveInfoSkeleton />
               )}
-              
+
               {!needAuth && !isLoadingDriveInfo && driveInfo && (
-                <div className={`flex-shrink-0 flex items-center gap-3 p-2.5 rounded-xl bg-zinc-800 dark:bg-zinc-800 border border-zinc-700 dark:border-zinc-700 shadow-sm ${FADE_IN_ANIMATION}`}>
+                <div className={`flex-shrink-0 flex flex-wrap items-center gap-3 p-2 sm:p-2.5 rounded-xl bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 shadow-sm ${FADE_IN_ANIMATION}`}>
                   <div className="flex items-center gap-2.5">
                     {driveInfo.picture ? (
-                      <img 
-                        src={driveInfo.picture} 
-                        alt="Avatar" 
-                        className="h-11 w-11 rounded-full object-cover border-2 border-zinc-700 dark:border-zinc-700" 
+                      <img
+                        src={driveInfo.picture}
+                        alt="Avatar"
+                        className="h-10 w-10 sm:h-11 sm:w-11 rounded-full object-cover border-2 border-gray-300 dark:border-zinc-700"
                         loading="lazy"
                       />
                     ) : (
-                      <div className="h-11 w-11 rounded-full bg-zinc-700 dark:bg-zinc-700 flex items-center justify-center">
-                        <User className="h-5 w-5 text-blue-400 dark:text-blue-400" />
+                      <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-full bg-gray-300 dark:bg-zinc-700 flex items-center justify-center">
+                        <User className="h-5 w-5 text-blue-500 dark:text-blue-400" />
                       </div>
                     )}
                     <div>
-                      <div className="text-sm font-medium text-zinc-200 dark:text-zinc-200">{driveInfo.name}</div>
-                      <div className="text-xs text-zinc-400 dark:text-zinc-400">{driveInfo.email}</div>
+                      <div className="text-sm font-medium text-gray-800 dark:text-zinc-200">{driveInfo.name}</div>
+                      <div className="text-xs text-gray-600 dark:text-zinc-400">{driveInfo.email}</div>
                     </div>
                   </div>
-                  
-                  <div className="flex flex-col justify-center pl-2 border-l border-zinc-700 dark:border-zinc-700 ml-1">
+
+                  <div className="flex flex-col justify-center pl-2 border-l border-gray-300 dark:border-zinc-700 ml-1">
                     <div className="flex items-center gap-1.5 text-xs mb-1">
-                      <div className="flex h-4 w-4 items-center justify-center rounded-full bg-zinc-700 dark:bg-zinc-700">
-                        <Cloud className="h-2.5 w-2.5 text-blue-400 dark:text-blue-400" />
+                      <div className="flex h-4 w-4 items-center justify-center rounded-full bg-gray-300 dark:bg-zinc-700">
+                        <Cloud className="h-2.5 w-2.5 text-blue-500 dark:text-blue-400" />
                       </div>
                       <div className="flex gap-1">
-                        <span className="whitespace-nowrap font-medium text-zinc-300 dark:text-zinc-300">{formatStorageSize(driveInfo.quota.used)}</span>
-                        <span className="text-zinc-500 dark:text-zinc-500">/</span>
-                        <span className="whitespace-nowrap text-zinc-400 dark:text-zinc-400">{formatStorageSize(driveInfo.quota.limit)}</span>
+                        <span className="whitespace-nowrap font-medium text-gray-800 dark:text-zinc-300">{formatStorageSize(driveInfo.quota.used)}</span>
+                        <span className="text-gray-500 dark:text-zinc-500">/</span>
+                        <span className="whitespace-nowrap text-gray-600 dark:text-zinc-400">{formatStorageSize(driveInfo.quota.limit)}</span>
                       </div>
                     </div>
-                    <Progress 
-                      value={(driveInfo.quota.used / driveInfo.quota.limit) * 100} 
-                      className="h-1.5 w-32 rounded-full bg-zinc-700 dark:bg-zinc-700" 
+                    <Progress
+                      value={(driveInfo.quota.used / driveInfo.quota.limit) * 100}
+                      className="h-1.5 w-32 rounded-full bg-gray-300 dark:bg-zinc-700"
                     />
                   </div>
-                  
+
                   <div className="flex ml-1 gap-1">
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7 rounded-full text-zinc-400 hover:text-blue-400 dark:text-zinc-400 dark:hover:text-blue-400"
+                      className="h-7 w-7 rounded-full text-gray-600 hover:text-blue-500 dark:text-zinc-400 dark:hover:text-blue-400"
                       onClick={fetchDriveInfo}
                       disabled={isLoadingDriveInfo}
                       title="Làm mới thông tin"
                     >
                       <RefreshCw className={`h-3.5 w-3.5 ${isLoadingDriveInfo ? 'animate-spin' : ''}`} />
                     </Button>
-                    
+
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7 rounded-full text-zinc-400 hover:text-red-400 dark:text-zinc-400 dark:hover:text-red-400"
+                      className="h-7 w-7 rounded-full text-gray-600 hover:text-red-500 dark:text-zinc-400 dark:hover:text-red-400"
                       onClick={handleDisconnectDrive}
                       disabled={isDriveDisconnecting}
                       title="Gỡ liên kết Google Drive"
@@ -622,12 +621,12 @@ const HomePage = () => {
             </div>
 
             {/* Các nút chức năng */}
-            <div className="flex flex-wrap items-center gap-3 ml-auto">
+            <div className="flex flex-wrap items-center gap-3">
               {needAuth && (
                 <Button
                   size="sm"
                   variant="outline"
-                  className="h-10 px-4 border-zinc-700 bg-zinc-800 text-amber-400 hover:bg-zinc-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-amber-400 dark:hover:bg-zinc-700"
+                  className="h-9 sm:h-10 px-3 sm:px-4 border-gray-300 bg-gray-100 text-amber-600 hover:bg-gray-200 dark:border-zinc-700 dark:bg-zinc-800 dark:text-amber-400 dark:hover:bg-zinc-700"
                   onClick={() => navigate('/google-auth')}
                 >
                   <Shield className="mr-1.5 h-3.5 w-3.5" />
@@ -639,7 +638,7 @@ const HomePage = () => {
               <Button
                 size="sm"
                 variant="outline"
-                className="h-10 px-4 border-zinc-700 bg-zinc-800 text-indigo-400 hover:bg-zinc-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-indigo-400 dark:hover:bg-zinc-700"
+                className="h-9 sm:h-10 px-3 sm:px-4 border-gray-300 bg-gray-100 text-indigo-600 hover:bg-gray-200 dark:border-zinc-700 dark:bg-zinc-800 dark:text-indigo-400 dark:hover:bg-zinc-700"
                 onClick={() => {
                   if (!selectedProfileId) {
                     Toast.warning('Vui lòng chọn một profile trước khi tạo lịch');
@@ -649,18 +648,19 @@ const HomePage = () => {
                 }}
               >
                 <AlarmClock className="mr-1.5 h-3.5 w-3.5" />
-                Quản lý lịch trình
+                <span className="hidden sm:inline">Quản lý lịch trình</span>
+                <span className="sm:hidden">Lịch trình</span>
               </Button>
 
               {/* Lựa chọn profile và nút tạo backup */}
-              <div className="flex gap-2.5 flex-shrink-0">
+              <div className="flex flex-wrap w-full sm:w-auto sm:flex-nowrap gap-2.5 mt-2 sm:mt-0">
                 <Select
                   value={selectedProfileId || undefined}
                   onValueChange={setSelectedProfileId}
                   disabled={loadingProfiles}
                 >
                   <SelectTrigger
-                    className="h-10 w-[200px] border-zinc-700 bg-zinc-800 text-sm text-zinc-200 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
+                    className="h-9 sm:h-10 w-full sm:w-[200px] border-gray-300 bg-white text-sm text-gray-800 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
                   >
                     <SelectValue placeholder={
                       loadingProfiles
@@ -679,7 +679,7 @@ const HomePage = () => {
                         <div className="flex items-center">
                           <span>{profile.name}</span>
                           {profile.is_active && (
-                            <Badge className="ml-2 h-4 px-1 py-0.5 text-[10px] font-medium bg-green-900 text-green-400 dark:bg-green-900 dark:text-green-400">
+                            <Badge className="ml-2 h-4 px-1 py-0.5 text-[10px] font-medium bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-400">
                               Active
                             </Badge>
                           )}
@@ -689,22 +689,24 @@ const HomePage = () => {
                   </SelectContent>
                 </Select>
 
-                <div className="flex items-center gap-2.5">
+                <div className="flex items-center gap-2 w-full sm:w-auto">
                   <Button
                     size="sm"
-                    className="h-10 bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-600 dark:hover:bg-blue-700 dark:text-white shadow-md font-medium"
+                    className="h-9 sm:h-10 flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-600 dark:hover:bg-blue-700 dark:text-white shadow-md font-medium"
                     onClick={handleCreateBackup}
                     disabled={isCreatingBackup || !selectedProfileId || loadingProfiles}
                   >
                     {isCreatingBackup ? (
                       <>
                         <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                        <span>Đang xử lý...</span>
+                        <span className="hidden sm:inline">Đang xử lý...</span>
+                        <span className="sm:hidden">Xử lý...</span>
                       </>
                     ) : (
                       <>
                         <Plus className="mr-1.5 h-3.5 w-3.5" />
-                        <span>Tạo backup</span>
+                        <span className="hidden sm:inline">Tạo backup</span>
+                        <span className="sm:hidden">Backup</span>
                       </>
                     )}
                   </Button>
@@ -712,7 +714,7 @@ const HomePage = () => {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-10 w-10 p-0 flex items-center justify-center border-zinc-700 bg-zinc-800 text-zinc-200 hover:bg-zinc-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700 shadow-md"
+                    className="h-9 sm:h-10 w-9 sm:w-10 p-0 flex items-center justify-center border-gray-300 bg-white text-gray-700 hover:bg-gray-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700 shadow-md"
                     onClick={fetchBackupFiles}
                     disabled={isSyncing}
                     title="Làm mới danh sách backup"
@@ -846,21 +848,6 @@ const HomePage = () => {
               </div>
             </div>
           </div>
-
-          <DialogFooter className="pt-4 border-t border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-800/50">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setIsScheduleDialogOpen(false);
-                setIsCreatingSchedule(false);
-                setNewScheduleName('');
-                setNewScheduleCron('0 0 * * *');
-              }}
-              className="border-gray-200 dark:border-zinc-700"
-            >
-              Đóng
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -1209,62 +1196,6 @@ const HomePage = () => {
                               <td className="py-3 px-4 md:px-6 text-right">
                                 <div className="flex items-center justify-end space-x-1">
                                   <TooltipProvider>
-                                    <DropdownMenu>
-                                      <DropdownMenuTrigger asChild>
-                                        <Button
-                                          variant="outline"
-                                          size="sm"
-                                          className="h-8 w-8 rounded-full p-0 border-gray-200 bg-white dark:border-zinc-700 dark:bg-zinc-800"
-                                        >
-                                          <Info className="h-4 w-4 text-gray-500 dark:text-zinc-300" />
-                                        </Button>
-                                      </DropdownMenuTrigger>
-
-                                      <DropdownMenuContent align="end" className="w-52">
-                                        <DropdownMenuItem
-                                          className="cursor-pointer flex items-center gap-2 text-sm"
-                                          onClick={() => window.open(BackupService.downloadBackup(file.id), '_blank')}
-                                        >
-                                          <ArrowDownToLine className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-                                          <span>Tải xuống</span>
-                                        </DropdownMenuItem>
-
-                                        {file.uploaded && file.driveLink && (
-                                          <DropdownMenuItem
-                                            className="cursor-pointer flex items-center gap-2 text-sm"
-                                            onClick={() => window.open(file.driveLink, '_blank')}
-                                          >
-                                            <ExternalLink className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                                            <span>Xem trên Google Drive</span>
-                                          </DropdownMenuItem>
-                                        )}
-
-                                        {!file.uploaded && (
-                                          <DropdownMenuItem
-                                            className="cursor-pointer flex items-center gap-2 text-sm"
-                                            onClick={() => handleUploadToDrive(file.id)}
-                                            disabled={isUploading !== null || needAuth}
-                                          >
-                                            <Upload className="h-4 w-4 text-green-600 dark:text-green-400" />
-                                            <span>Upload lên Google Drive</span>
-                                          </DropdownMenuItem>
-                                        )}
-
-                                        <DropdownMenuSeparator />
-
-                                        <DropdownMenuItem
-                                          className="cursor-pointer flex items-center gap-2 text-sm text-red-600 focus:text-red-700 dark:text-red-500 dark:focus:text-red-400"
-                                          onClick={() => handleDeleteBackup(file.id)}
-                                          disabled={isDeleting === file.id}
-                                        >
-                                          <Trash2 className="h-4 w-4" />
-                                          <span>Xóa backup</span>
-                                        </DropdownMenuItem>
-                                      </DropdownMenuContent>
-                                    </DropdownMenu>
-                                  </TooltipProvider>
-
-                                  <TooltipProvider>
                                     <Tooltip>
                                       <TooltipTrigger asChild>
                                         <Button
@@ -1302,6 +1233,30 @@ const HomePage = () => {
                                         </TooltipTrigger>
                                         <TooltipContent side="bottom">
                                           <p className="text-xs">Upload lên Google Drive</p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  )}
+                                  {file.uploaded && (
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-8 w-8 rounded-full p-0 text-blue-600 dark:text-blue-400 dark:hover:bg-blue-00/20"
+                                            onClick={() => window.open(file.driveLink, '_blank')}
+                                            disabled={isUploading !== null || needAuth}
+                                          >
+                                            <ExternalLink className="h-4 w-4" />
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="bottom">
+                                          <div
+                                            className="cursor-pointer flex items-center gap-2 text-sm"
+                                          >
+                                            <span>Xem trên Google Drive</span>
+                                          </div>
                                         </TooltipContent>
                                       </Tooltip>
                                     </TooltipProvider>

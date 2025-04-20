@@ -1,10 +1,12 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/backup-cronjob/internal/database"
@@ -363,5 +365,126 @@ func (h *Handler) GetActiveProfileHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"profile": profile,
+	})
+}
+
+// ExportProfileHandler xuất profile dưới dạng file JSON
+func (h *Handler) ExportProfileHandler(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "ID profile không hợp lệ",
+		})
+		return
+	}
+
+	profile, err := database.GetProfile(id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"error":   "Không tìm thấy profile",
+		})
+		return
+	}
+
+	// Đặt header để browser tải xuống file
+	filename := fmt.Sprintf("profile_%s_%s.json", profile.Name, time.Now().Format("2006-01-02"))
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
+	c.Header("Content-Type", "application/json")
+
+	c.JSON(http.StatusOK, profile)
+}
+
+// ImportProfileHandler nhập profile từ file JSON
+func (h *Handler) ImportProfileHandler(c *gin.Context) {
+	// Đọc file từ form
+	file, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Không thể đọc file",
+			"message": err.Error(),
+		})
+		return
+	}
+
+	// Kiểm tra đuôi file
+	if !strings.HasSuffix(strings.ToLower(file.Filename), ".json") {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Chỉ chấp nhận file JSON",
+		})
+		return
+	}
+
+	// Mở file
+	openedFile, err := file.Open()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Không thể mở file",
+			"message": err.Error(),
+		})
+		return
+	}
+	defer openedFile.Close()
+
+	// Đọc nội dung file
+	var profile models.DatabaseProfile
+	decoder := json.NewDecoder(openedFile)
+	if err := decoder.Decode(&profile); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "File JSON không hợp lệ",
+			"message": err.Error(),
+		})
+		return
+	}
+
+	// Kiểm tra dữ liệu
+	if profile.Name == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Tên profile không được để trống",
+		})
+		return
+	}
+
+	// Xóa ID để tạo mới và đảm bảo profile được import không active
+	profile.ID = 0
+	profile.IsActive = false
+
+	// Lưu profile vào database
+	id, err := database.CreateProfile(profile)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Không thể lưu profile",
+			"message": err.Error(),
+		})
+		return
+	}
+
+	// Lấy profile vừa tạo
+	newProfile, err := database.GetProfile(id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Không thể lấy thông tin profile đã tạo",
+		})
+		return
+	}
+
+	// Ẩn mật khẩu
+	if newProfile.DBPassword != "" {
+		newProfile.DBPassword = "••••••••"
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Nhập profile thành công",
+		"profile": newProfile,
 	})
 }

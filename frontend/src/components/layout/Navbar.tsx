@@ -9,11 +9,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { isAuthenticated, getUser, logout } from "@/utils/auth";
-import { Menu, User, LogOut, Database, Settings, LayoutDashboard } from "lucide-react";
+import { User, LogOut, Database, Settings } from "lucide-react";
 import { ModeToggle } from "@/components/mode-toggle";
 
 const Navbar = () => {
-  const [isOpen, setIsOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [username, setUsername] = useState("");
   const navigate = useNavigate();
@@ -50,23 +49,6 @@ const Navbar = () => {
           <Database className="h-6 w-6 text-primary" />
           <span className="font-bold text-lg">PostgreSQL Backup</span>
         </Link>
-
-        {/* Desktop Navigation */}
-        <nav className="hidden md:flex items-center gap-6">
-          {isLoggedIn && (
-            <>
-              <Link to="/" className="text-sm font-medium text-gray-700 hover:text-primary dark:text-zinc-300 dark:hover:text-primary transition flex items-center gap-1">
-                <LayoutDashboard className="h-4 w-4" />
-                <span>Trang chủ</span>
-              </Link>
-              <Link to="/settings" className="text-sm font-medium text-gray-700 hover:text-primary dark:text-zinc-300 dark:hover:text-primary transition flex items-center gap-1">
-                <Settings className="h-4 w-4" />
-                <span>Cấu hình</span>
-              </Link>
-            </>
-          )}
-        </nav>
-
         <div className="flex items-center gap-4">
           <ModeToggle />
 
@@ -82,6 +64,13 @@ const Navbar = () => {
                   {username}
                 </div>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem className="cursor-pointer focus:text-indigo-400" onClick={() => {
+                  navigateTo('/settings');
+                }}>
+                  <Settings className="h-4 w-4 mr-2" />
+                  <span>Cấu hình</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem className="cursor-pointer text-red-500 focus:text-red-500" onClick={handleLogout}>
                   <LogOut className="mr-2 h-4 w-4" />
                   <span>Đăng xuất</span>
@@ -93,68 +82,8 @@ const Navbar = () => {
               Đăng nhập
             </Button>
           )}
-
-          <button
-            className="md:hidden p-2 text-gray-500 hover:text-primary transition"
-            onClick={() => setIsOpen(!isOpen)}
-          >
-            <Menu className="h-5 w-5" />
-          </button>
         </div>
       </div>
-
-      {/* Mobile Navigation */}
-      {isOpen && (
-        <div className="md:hidden bg-white dark:bg-zinc-900 border-t dark:border-zinc-800 py-4 px-4">
-          <nav className="flex flex-col space-y-3">
-            {isLoggedIn && (
-              <>
-                <Link
-                  to="/"
-                  className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-primary dark:text-zinc-300"
-                  onClick={() => setIsOpen(false)}
-                >
-                  <LayoutDashboard className="h-4 w-4" />
-                  <span>Trang chủ</span>
-                </Link>
-                <Link
-                  to="/settings"
-                  className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-primary dark:text-zinc-300"
-                  onClick={() => setIsOpen(false)}
-                >
-                  <Settings className="h-4 w-4" />
-                  <span>Cấu hình</span>
-                </Link>
-                <button
-                  onClick={() => {
-                    handleLogout();
-                    setIsOpen(false);
-                  }}
-                  className="flex items-center gap-2 text-sm font-medium text-red-500 hover:text-red-600 dark:text-red-400"
-                >
-                  <LogOut className="h-4 w-4" />
-                  <span>Đăng xuất</span>
-                </button>
-              </>
-            )}
-
-            {!isLoggedIn && (
-              <Link
-                to="/auth/login"
-                className="flex items-center gap-2 text-sm font-medium text-primary hover:text-primary/80"
-                onClick={() => setIsOpen(false)}
-              >
-                <User className="h-4 w-4" />
-                <span>Đăng nhập</span>
-              </Link>
-            )}
-
-            <div className="pt-2">
-              <ModeToggle />
-            </div>
-          </nav>
-        </div>
-      )}
     </header>
   );
 };

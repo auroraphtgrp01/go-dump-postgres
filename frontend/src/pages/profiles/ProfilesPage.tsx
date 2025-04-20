@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,7 +16,9 @@ import {
   AlertCircle,
   RefreshCw,
   Pencil,
-  Save
+  Save,
+  Download,
+  Upload
 } from 'lucide-react';
 
 interface Profile {
@@ -34,6 +36,9 @@ const ProfilesPage = () => {
   const [isLoadingProfiles, setIsLoadingProfiles] = useState(true);
   const [selectedProfile, setSelectedProfile] = useState<Profile | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
   // Kiểm tra trạng thái xác thực khi tải trang
@@ -230,11 +235,133 @@ const ProfilesPage = () => {
     }
   };
 
+  const handleExportProfile = async (id: string) => {
+    if (!id) return;
+    
+    setIsExporting(true);
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`/api/profiles/${id}/export`, {
+        headers: {
+          'Authorization': 'Bearer ' + token
+        }
+      });
+
+      if (response.ok) {
+        // Tạo tên file dựa trên tên profile và ngày hiện tại
+        const profile = profiles.find(p => p.id === id);
+        const fileName = `profile_${profile?.name || id}_${new Date().toISOString().split('T')[0]}.json`;
+        
+        // Chuyển đổi response thành blob và tạo URL để tải xuống
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        Toast.success('Xuất profile thành công');
+      } else {
+        Toast.error('Không thể xuất profile');
+      }
+    } catch (error) {
+      console.error('Error exporting profile:', error);
+      Toast.error('Lỗi kết nối máy chủ');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleImportButtonClick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleImportProfile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Kiểm tra loại file (chỉ chấp nhận JSON)
+    if (file.type !== 'application/json' && !file.name.endsWith('.json')) {
+      Toast.error('Chỉ chấp nhận file JSON');
+      return;
+    }
+
+    setIsImporting(true);
+    try {
+      const token = localStorage.getItem('auth_token');
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/api/profiles/import', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + token
+        },
+        body: formData
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          Toast.success('Nhập profile thành công');
+          fetchProfiles(); // Làm mới danh sách
+        } else {
+          Toast.error(data.message || 'Không thể nhập profile');
+        }
+      } else {
+        Toast.error('Không thể nhập profile');
+      }
+    } catch (error) {
+      console.error('Error importing profile:', error);
+      Toast.error('Lỗi kết nối máy chủ');
+    } finally {
+      setIsImporting(false);
+      // Reset input file
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
   return (
     <div className="container mx-auto p-6">
-      <div className="mb-6 flex items-center">
-        <Users className="w-6 h-6 mr-2 text-primary" />
-        <h1 className="text-2xl font-bold">Quản lý Profiles</h1>
+      <div className="mb-6 flex items-center justify-between">
+        <div className="flex items-center">
+          <Users className="w-6 h-6 mr-2 text-primary" />
+          <h1 className="text-2xl font-bold">Quản lý Profiles</h1>
+        </div>
+        <div className="flex gap-2">
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            accept=".json" 
+            onChange={handleImportProfile}
+            className="hidden"
+          />
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={handleImportButtonClick}
+            disabled={isImporting}
+          >
+            {isImporting ? (
+              <>
+                <div className="animate-spin mr-2 h-4 w-4 border-2 border-primary border-t-transparent rounded-full"></div>
+                <span>Đang nhập...</span>
+              </>
+            ) : (
+              <>
+                <Upload className="w-4 h-4 mr-2" />
+                Nhập Profile
+              </>
+            )}
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -464,6 +591,28 @@ const ProfilesPage = () => {
                       >
                         <Trash2 className="w-4 h-4 mr-2" />
                         Xóa
+                      </Button>
+                    </div>
+
+                    <div className="flex gap-2 mt-2">
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        onClick={() => handleExportProfile(selectedProfile.id)}
+                        disabled={isExporting}
+                        className="flex-1"
+                      >
+                        {isExporting ? (
+                          <>
+                            <div className="animate-spin mr-2 h-4 w-4 border-2 border-primary border-t-transparent rounded-full"></div>
+                            <span>Đang xuất...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Download className="w-4 h-4 mr-2" />
+                            Xuất profile
+                          </>
+                        )}
                       </Button>
                     </div>
                   </div>

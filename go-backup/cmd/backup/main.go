@@ -310,6 +310,8 @@ func startWebApp(cfg *config.Config, port string) {
 		protected.PUT("/profiles/:id", h.UpdateProfileHandler)
 		protected.DELETE("/profiles/:id", h.DeleteProfileHandler)
 		protected.POST("/profiles/:id/activate", h.SetActiveProfileHandler)
+		protected.GET("/profiles/:id/export", h.ExportProfileHandler)
+		protected.POST("/profiles/import", h.ImportProfileHandler)
 
 		// Route mới cho tính năng lập lịch backup tự động
 		protected.GET("/schedule/options", h.GetScheduleOptionsHandler)

@@ -90,6 +90,22 @@ export const ProfileService = {
 
   toggleActive: (id: string, isActive: boolean): Promise<AxiosResponse<ApiResponse<any>>> => {
     return axios.post(`/api/profiles/${id}/toggle-active`, { is_active: isActive });
+  },
+  
+  exportProfile: (id: string): Promise<AxiosResponse<ApiResponse<any>>> => {
+    return axios.get(`/api/profiles/${id}/export`, {
+      responseType: 'blob',
+    });
+  },
+  
+  importProfile: (file: File): Promise<AxiosResponse<ApiResponse<any>>> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return axios.post('/api/profiles/import', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
   }
 };
 

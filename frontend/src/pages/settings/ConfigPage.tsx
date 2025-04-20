@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -26,7 +26,9 @@ import {
   Trash2,
   Check,
   X,
-  Pencil
+  Pencil,
+  Download,
+  Upload
 } from 'lucide-react';
 import { IProfile } from '@/types';
 
@@ -72,6 +74,9 @@ const ConfigPage = () => {
   const [editingProfile, setEditingProfile] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editDescription, setEditDescription] = useState('');
+  const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // State cho dialog
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
@@ -622,10 +627,103 @@ const ConfigPage = () => {
     setProfiles(updatedProfiles);
   };
 
+  const handleExportProfile = async (id: string) => {
+    if (!id) return;
+
+    setIsExporting(true);
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`/api/profiles/${id}/export`, {
+        headers: {
+          'Authorization': 'Bearer ' + token
+        }
+      });
+
+      if (response.ok) {
+        // Tạo tên file dựa trên tên profile và ngày hiện tại
+        const profile = profiles.find(p => p.id === id);
+        const fileName = `profile_${profile?.name || id}_${new Date().toISOString().split('T')[0]}.json`;
+
+        // Lấy blob trực tiếp từ response
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+
+        Toast.success('Xuất profile thành công');
+      } else {
+        Toast.error('Không thể xuất profile');
+      }
+    } catch (error) {
+      console.error('Error exporting profile:', error);
+      Toast.error('Lỗi khi xuất profile');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleImportButtonClick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleImportProfile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Kiểm tra loại file (chỉ chấp nhận JSON)
+    if (file.type !== 'application/json' && !file.name.endsWith('.json')) {
+      Toast.error('Chỉ chấp nhận file JSON');
+      return;
+    }
+
+    setIsImporting(true);
+    try {
+      const token = localStorage.getItem('auth_token');
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/api/profiles/import', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + token
+        },
+        body: formData
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          Toast.success('Nhập profile thành công');
+          fetchProfiles(); // Làm mới danh sách
+        } else {
+          Toast.error(data.message || 'Không thể nhập profile');
+        }
+      } else {
+        Toast.error('Không thể nhập profile');
+      }
+    } catch (error) {
+      console.error('Error importing profile:', error);
+      Toast.error('Lỗi khi nhập profile');
+    } finally {
+      setIsImporting(false);
+      // Reset input file
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
   return (
     <div className="container max-w-screen-xl mx-auto px-4 py-6 sm:px-6 sm:py-8">
       {/* Header section with gradient background */}
-      <div className="relative mb-8 overflow-hidden rounded-xl bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-zinc-900/80 dark:to-indigo-900/30 p-6 shadow-md border border-indigo-100/80 dark:border-indigo-900/20">
+      <div className="relative mb-8 overflow-hidden rounded-xl bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-zinc-900 dark:to-zinc-900 p-6 shadow-md border border-indigo-100/80 dark:border-zinc-800/20">
         <div className="absolute right-0 top-0 h-32 w-32 -translate-y-1/3 translate-x-1/3 rounded-full bg-indigo-200/40 dark:bg-indigo-400/10 blur-2xl"></div>
         <div className="absolute left-1/4 bottom-0 h-24 w-24 translate-y-1/3 rounded-full bg-blue-300/30 dark:bg-blue-500/10 blur-2xl"></div>
 
@@ -733,7 +831,7 @@ const ConfigPage = () => {
           {/* Panel quản lý profile */}
           <div className="lg:w-1/3 space-y-6">
             <Card className="overflow-hidden border-gray-100 dark:border-zinc-800 shadow-md flex flex-col h-full">
-              <CardHeader className="bg-gradient-to-r from-indigo-50/50 to-blue-50/50 dark:from-zinc-900/80 dark:to-indigo-950/40 border-b border-indigo-100/80 dark:border-indigo-800/20 p-5">
+              <CardHeader className="bg-gradient-to-r from-indigo-50/50 to-blue-50/50 dark:from-zinc-900 dark:to-zinc-900 border-b border-indigo-100/80 dark:border-zinc-800/20 p-5">
                 <CardTitle className="flex items-center text-indigo-800 dark:text-indigo-300">
                   <Users className="w-5 h-5 mr-2 text-indigo-600 dark:text-indigo-400" />
                   Quản lý Profiles
@@ -748,7 +846,33 @@ const ConfigPage = () => {
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <Label className="text-sm font-medium text-gray-700 dark:text-zinc-300">Danh sách Profiles</Label>
-                      {createProfileDialog()}
+                      <div className="flex gap-2">
+                        <input
+                          type="file"
+                          ref={fileInputRef}
+                          accept=".json"
+                          onChange={handleImportProfile}
+                          className="hidden"
+                        />
+                        <Button
+                          variant="indigo"
+                          onClick={handleImportButtonClick}
+                          disabled={isImporting}
+                        >
+                          {isImporting ? (
+                            <>
+                              <div className="animate-spin mr-2 h-3 w-3 border-2 border-indigo-700 border-t-transparent rounded-full"></div>
+                              <span>Đang nhập...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="w-3 h-3 mr-1.5" />
+                              Nhập
+                            </>
+                          )}
+                        </Button>
+                        {createProfileDialog()}
+                      </div>
                     </div>
 
                     {/* Profile list */}
@@ -880,6 +1004,23 @@ const ConfigPage = () => {
                                     <Button
                                       size="sm"
                                       variant="outline"
+                                      className="h-8 border-blue-200 bg-blue-50/50 text-blue-700 hover:bg-blue-50 dark:border-blue-900/30 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/30"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleExportProfile(profile.id);
+                                      }}
+                                      title="Xuất profile"
+                                      disabled={isExporting}
+                                    >
+                                      {isExporting && profile.id === selectedProfileId ? (
+                                        <div className="animate-spin h-3 w-3 border-2 border-blue-700 border-t-transparent rounded-full"></div>
+                                      ) : (
+                                        <Download className="h-3 w-3" />
+                                      )}
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
                                       className="h-8 border-red-200 bg-red-50/50 text-red-700 hover:bg-red-50 dark:border-red-900/30 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/30"
                                       onClick={(e) => {
                                         e.stopPropagation();
@@ -907,7 +1048,7 @@ const ConfigPage = () => {
           {/* Phần cấu hình chính */}
           <div className="lg:w-2/3">
             <Card className="overflow-hidden border-gray-100 dark:border-zinc-800 shadow-md flex flex-col h-full">
-              <CardHeader className="bg-gradient-to-r from-blue-50/50 to-indigo-50/50 dark:from-zinc-900/80 dark:to-blue-950/40 border-b border-blue-100/80 dark:border-blue-800/20 p-5">
+              <CardHeader className="bg-gradient-to-r from-blue-50/50 to-indigo-50/50 dark:from-zinc-900 dark:to-zinc-900 border-b border-blue-100/80 dark:border-zinc-800/20 p-5">
                 <CardTitle className="flex items-center text-blue-800 dark:text-blue-300">
                   <Database className="w-5 h-5 mr-2 text-blue-600 dark:text-blue-400" />
                   Cấu hình hệ thống
@@ -1043,9 +1184,8 @@ const ConfigPage = () => {
             </Card>
           </div>
         </div>
-      )
-      }
-    </div >
+      )}
+    </div>
   );
 };
 
