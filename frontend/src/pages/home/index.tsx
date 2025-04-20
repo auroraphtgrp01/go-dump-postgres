@@ -738,7 +738,7 @@ const HomePage = () => {
         }
       }}>
         <DialogContent className="sm:max-w-[1200px] max-h-[90vh] overflow-hidden flex flex-col bg-white dark:bg-zinc-900">
-          <DialogHeader className="pb-4 border-b border-gray-100 dark:border-zinc-800">
+          <DialogHeader className="">
             <DialogTitle className="flex items-center gap-3 text-indigo-700 dark:text-indigo-400">
               <div className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900">
                 <AlarmClock className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
@@ -750,7 +750,7 @@ const HomePage = () => {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex-1 overflow-auto py-6 px-1">
+          <div className="flex-1 overflow-auto py-2 px-1">
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                 {/* Form tạo lịch mới */}

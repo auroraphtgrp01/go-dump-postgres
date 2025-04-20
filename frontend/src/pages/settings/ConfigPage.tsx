@@ -212,8 +212,6 @@ const ConfigPage = () => {
 
       const data = await response.json();
       if (data.success) {
-        Toast.success('Cấu hình đã được lưu');
-
         // Nếu đã chọn profile, cập nhật thông tin profile
         if (selectedProfileId) {
           await updateProfileFromConfig(selectedProfileId);
@@ -486,125 +484,138 @@ const ConfigPage = () => {
             <Plus className="mr-2 h-4 w-4" /> Thêm Profile
           </Button>
         </DialogTrigger>
-        <DialogContent className="sm:max-w-[525px]">
+        <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>{isCreatingProfile ? 'Thêm Profile Mới' : 'Cập Nhật Profile'}</DialogTitle>
+            <DialogTitle className="text-xl">
+              {isCreatingProfile ? 'Thêm Profile Mới' : 'Cập Nhật Profile'}
+            </DialogTitle>
             <DialogDescription>
               Thêm thông tin profile database để backup
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="name" className="text-right">Tên profile</Label>
+          <div className="space-y-5 py-4  overflow-y-auto pr-1">
+            <div className="space-y-2">
+              <Label htmlFor="name" className="text-sm font-medium">Tên profile</Label>
               <Input
                 id="name"
                 value={isCreatingProfile ? newProfileName : editName}
                 onChange={e => isCreatingProfile ? setNewProfileName(e.target.value) : setEditName(e.target.value)}
-                className="col-span-3"
+                className="w-full"
               />
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="description" className="text-right">Mô tả</Label>
+
+            <div className="space-y-2">
+              <Label htmlFor="description" className="text-sm font-medium">Mô tả</Label>
               <Input
                 id="description"
                 value={isCreatingProfile ? newProfileDescription : editDescription}
                 onChange={e => isCreatingProfile ? setNewProfileDescription(e.target.value) : setEditDescription(e.target.value)}
-                className="col-span-3"
+                className="w-full"
               />
             </div>
-            {/* Các trường dữ liệu khác */}
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="db_user" className="text-right">DB User</Label>
-              <Input
-                id="db_user"
-                value={isCreatingProfile ? newProfileDbUser : editingProfile ? profiles.find(p => p.id === editingProfile)?.db_user || '' : ''}
-                onChange={e => setNewProfileDbUser(e.target.value)}
-                className="col-span-3"
-              />
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="db_user" className="text-sm font-medium">DB User</Label>
+                <Input
+                  id="db_user"
+                  value={isCreatingProfile ? newProfileDbUser : editingProfile ? profiles.find(p => p.id === editingProfile)?.db_user || '' : ''}
+                  onChange={e => setNewProfileDbUser(e.target.value)}
+                  className="w-full"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="db_password" className="text-sm font-medium">DB Password</Label>
+                <Input
+                  id="db_password"
+                  type="password"
+                  value={isCreatingProfile ? newProfileDbPassword : editingProfile ? profiles.find(p => p.id === editingProfile)?.db_password || '' : ''}
+                  onChange={e => setNewProfileDbPassword(e.target.value)}
+                  className="w-full"
+                />
+              </div>
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="db_password" className="text-right">DB Password</Label>
-              <Input
-                id="db_password"
-                type="password"
-                value={isCreatingProfile ? newProfileDbPassword : editingProfile ? profiles.find(p => p.id === editingProfile)?.db_password || '' : ''}
-                onChange={e => setNewProfileDbPassword(e.target.value)}
-                className="col-span-3"
-              />
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="container_name" className="text-sm font-medium">Container</Label>
+                <Input
+                  id="container_name"
+                  value={isCreatingProfile ? newProfileContainerName : editingProfile ? profiles.find(p => p.id === editingProfile)?.container_name || '' : ''}
+                  onChange={e => setNewProfileContainerName(e.target.value)}
+                  className="w-full"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="db_name" className="text-sm font-medium">DB Name</Label>
+                <Input
+                  id="db_name"
+                  value={isCreatingProfile ? newProfileDbName : editingProfile ? profiles.find(p => p.id === editingProfile)?.db_name || '' : ''}
+                  onChange={e => setNewProfileDbName(e.target.value)}
+                  className="w-full"
+                />
+              </div>
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="container_name" className="text-right">Container</Label>
-              <Input
-                id="container_name"
-                value={isCreatingProfile ? newProfileContainerName : editingProfile ? profiles.find(p => p.id === editingProfile)?.container_name || '' : ''}
-                onChange={e => setNewProfileContainerName(e.target.value)}
-                className="col-span-3"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="db_name" className="text-right">DB Name</Label>
-              <Input
-                id="db_name"
-                value={isCreatingProfile ? newProfileDbName : editingProfile ? profiles.find(p => p.id === editingProfile)?.db_name || '' : ''}
-                onChange={e => setNewProfileDbName(e.target.value)}
-                className="col-span-3"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="backup_dir" className="text-right">Backup Dir</Label>
+
+            <div className="space-y-2">
+              <Label htmlFor="backup_dir" className="text-sm font-medium">Backup Dir</Label>
               <Input
                 id="backup_dir"
                 value={isCreatingProfile ? newProfileBackupDir : editingProfile ? profiles.find(p => p.id === editingProfile)?.backup_dir || '' : ''}
                 onChange={e => setNewProfileBackupDir(e.target.value)}
-                className="col-span-3"
+                className="w-full"
               />
             </div>
 
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="backup_retention" className="text-right">Số ngày lưu trữ</Label>
+            <div className="space-y-2">
+              <Label htmlFor="backup_retention" className="text-sm font-medium">Số ngày lưu trữ</Label>
               <Input
                 id="backup_retention"
                 type="number"
                 min="0"
                 value={isCreatingProfile ? newProfileBackupRetention : editingProfile ? profiles.find(p => p.id === editingProfile)?.backup_retention || 0 : 0}
                 onChange={e => setNewProfileBackupRetention(parseInt(e.target.value))}
-                className="col-span-3"
+                className="w-full"
               />
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="upload_to_drive" className="text-right">Upload lên Drive</Label>
-              <div className="col-span-3">
+
+            <div className="space-y-4">
+              <div className="flex items-center space-x-2">
                 <Switch
                   id="upload_to_drive"
                   checked={isCreatingProfile ? newProfileUploadToDrive : editingProfile ? profiles.find(p => p.id === editingProfile)?.upload_to_drive || false : false}
                   onCheckedChange={checked => isCreatingProfile ? setNewProfileUploadToDrive(checked) : editingProfile && handleUpdateUploadToDrive(checked)}
                 />
+                <Label htmlFor="upload_to_drive" className="text-sm font-medium">Upload lên Drive</Label>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="folder_drive" className="text-sm font-medium">Tên thư mục Drive</Label>
+                <Input
+                  id="folder_drive"
+                  value={isCreatingProfile ? newProfileFolderDrive : editingProfile ? profiles.find(p => p.id === editingProfile)?.folder_drive || '' : ''}
+                  onChange={e => setNewProfileFolderDrive(e.target.value)}
+                  className="w-full"
+                  disabled={!newProfileUploadToDrive && !(editingProfile && profiles.find(p => p.id === editingProfile)?.upload_to_drive)}
+                />
               </div>
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="folder_drive" className="text-right">Tên thư mục Drive</Label>
-              <Input
-                id="folder_drive"
-                value={isCreatingProfile ? newProfileFolderDrive : editingProfile ? profiles.find(p => p.id === editingProfile)?.folder_drive || '' : ''}
-                onChange={e => setNewProfileFolderDrive(e.target.value)}
-                className="col-span-3"
-                disabled={!newProfileUploadToDrive && !(editingProfile && profiles.find(p => p.id === editingProfile)?.upload_to_drive)}
-              />
-            </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="gap-3 pt-2">
             <Button type="button" variant="outline" onClick={() => {
               setIsProfileDialogOpen(false);
               setIsCreatingProfile(false);
               setEditingProfile(null);
-            }}>Hủy</Button>
-            <Button type="button" onClick={() => {
+            }} className="px-4">Hủy</Button>
+            <Button type="button" variant='green' onClick={() => {
               if (isCreatingProfile) {
                 handleCreateProfile();
               } else if (editingProfile) {
                 handleUpdateProfile(editingProfile);
               }
-            }}>
+            }} className="px-4">
               {isCreatingProfile ? 'Tạo Profile' : 'Cập Nhật'}
             </Button>
           </DialogFooter>
@@ -790,11 +801,10 @@ const ConfigPage = () => {
               />
             </div>
           </div>
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter className="gap-2">
             <Button
               variant="outline"
               onClick={() => setIsLoginDialogOpen(false)}
-              className="border-gray-200 hover:bg-gray-50 text-gray-700"
             >
               Hủy
             </Button>

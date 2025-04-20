@@ -132,6 +132,7 @@ export default function Login() {
 
                             <Button
                                 type="submit"
+                                variant="rose"
                                 className="w-full h-10 transition-all hover:shadow-md"
                                 disabled={isLoading}
                             >

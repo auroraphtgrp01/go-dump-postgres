@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { isAuthenticated, getUser, logout } from "@/utils/auth";
-import { User, LogOut, Database, Settings } from "lucide-react";
+import { User, LogOut, Database, Settings, Github } from "lucide-react";
 import { ModeToggle } from "@/components/mode-toggle";
 
 const Navbar = () => {
@@ -42,20 +42,33 @@ const Navbar = () => {
     navigate(path);
   };
 
+  const navigateToGithub = () => {
+    window.open('https://github.com/auroraphtgrp01', '_blank');
+  };
+
   return (
-    <header className="bg-white dark:bg-zinc-900 shadow-sm sticky top-0 z-50">
+    <header className="bg-white/50 dark:bg-zinc-900/50 shadow-sm sticky top-0 z-50 backdrop-blur-md">
       <div className="container mx-auto px-4 flex justify-between items-center h-16">
         <Link to="/" className="flex items-center gap-2">
           <Database className="h-6 w-6 text-primary" />
-          <span className="font-bold text-lg">PostgreSQL Backup</span>
+          <span className="font-bold text-lg">PostgreSQL Dump</span>
         </Link>
         <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={navigateToGithub}
+            title="GitHub"
+          >
+            <Github className="h-5 w-5" />
+          </Button>
+          
           <ModeToggle />
 
           {isLoggedIn ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="relative rounded-full h-8 w-8 p-0">
+                <Button variant="ghost"  className="p-3">
                   <User className="h-5 w-5" />
                 </Button>
               </DropdownMenuTrigger>
