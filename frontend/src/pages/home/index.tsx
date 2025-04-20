@@ -32,7 +32,8 @@ import {
   TableProperties,
   AlarmClock,
   User,
-  Cloud
+  Cloud,
+  LogOut
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BackupService, GoogleDriveService } from "@/lib/http/api";
@@ -55,6 +56,8 @@ import { Label } from "@/components/ui/label";
 import ScheduleSelector from "@/components/ScheduleSelector";
 import ActiveSchedules from "@/components/ActiveSchedules";
 import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
+import axios from "axios";
 
 // Transition animation classes
 const FADE_IN_ANIMATION = "animate-in fade-in duration-300";
@@ -71,6 +74,26 @@ interface DriveInfo {
   }
   picture?: string;
 }
+
+// DriveInfoSkeleton component
+const DriveInfoSkeleton = () => (
+  <div className="flex-shrink-0 flex items-center gap-3 p-2.5 rounded-xl bg-white/70 dark:bg-zinc-900/60 border border-blue-100/80 dark:border-blue-900/30 shadow-sm backdrop-blur-sm animate-pulse">
+    <div className="flex items-center gap-2.5">
+      <div className="h-11 w-11 rounded-full bg-gray-200 dark:bg-gray-700"></div>
+      <div className="space-y-2">
+        <Skeleton className="h-4 w-24 bg-gray-200 dark:bg-gray-700" />
+        <Skeleton className="h-3 w-32 bg-gray-200 dark:bg-gray-700" />
+      </div>
+    </div>
+    <div className="flex flex-col justify-center pl-2 border-l border-gray-200 dark:border-gray-700 ml-1">
+      <div className="space-y-2">
+        <Skeleton className="h-3 w-28 bg-gray-200 dark:bg-gray-700" />
+        <Skeleton className="h-1.5 w-32 rounded-full bg-gray-200 dark:bg-gray-700" />
+      </div>
+    </div>
+    <Skeleton className="h-7 w-7 rounded-full bg-gray-200 dark:bg-gray-700" />
+  </div>
+);
 
 const HomePage = () => {
   // State management
@@ -91,6 +114,7 @@ const HomePage = () => {
   const [viewMode, setViewMode] = useState<"grid" | "table">("table");
   const [driveInfo, setDriveInfo] = useState<DriveInfo | null>(null);
   const [isLoadingDriveInfo, setIsLoadingDriveInfo] = useState(false);
+  const [isDriveDisconnecting, setIsDriveDisconnecting] = useState(false);
 
   // Thêm state cho dialog lịch trình
   const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
@@ -139,6 +163,24 @@ const HomePage = () => {
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, [navigate]);
+  
+  // Tự động refresh thông tin Google Drive mỗi 5 phút
+  useEffect(() => {
+    if (needAuth) return;
+    
+    // Tự động làm mới thông tin Google Drive mỗi 5 phút
+    const driveInfoRefreshInterval = setInterval(() => {
+      if (!needAuth && !isLoadingDriveInfo) {
+        console.log("Tự động làm mới thông tin Google Drive...");
+        fetchDriveInfo();
+      }
+    }, 5 * 60 * 1000); // 5 phút
+    
+    // Cleanup interval khi component unmount
+    return () => {
+      clearInterval(driveInfoRefreshInterval);
+    };
+  }, [needAuth, isLoadingDriveInfo]);
 
   // Fetch profiles from API
   const fetchProfiles = async () => {
@@ -214,14 +256,71 @@ const HomePage = () => {
   const fetchDriveInfo = async () => {
     try {
       setIsLoadingDriveInfo(true);
+      console.log("Đang tải thông tin Google Drive...");
+      
+      // Thêm độ trễ nhẹ để hiển thị skeleton loading (chỉ trong môi trường phát triển)
+      if (import.meta.env.DEV) {
+        await new Promise(resolve => setTimeout(resolve, 800));
+      }
+      
       const response = await GoogleDriveService.getDriveInfo();
       if (response.data.success) {
         setDriveInfo(response.data.data);
+        console.log("Đã tải thông tin Google Drive thành công");
+      } else {
+        console.error("Lỗi khi tải thông tin Google Drive:", response.data.message);
+        // Không hiển thị Toast lỗi để tránh làm phiền người dùng
+        setDriveInfo(null);
       }
     } catch (error) {
-      console.error("Lỗi lấy thông tin Google Drive:", error);
+      console.error("Lỗi kết nối khi tải thông tin Google Drive:", error);
+      setDriveInfo(null);
+      
+      // Nếu lỗi là do chưa xác thực
+      if (axios.isAxiosError(error) && error.response?.status === 401) {
+        setNeedAuth(true);
+      }
     } finally {
       setIsLoadingDriveInfo(false);
+    }
+  };
+
+  // Gỡ liên kết Google Drive
+  const handleDisconnectDrive = async () => {
+    if (!window.confirm('Bạn có chắc chắn muốn gỡ liên kết với Google Drive không?')) {
+      return;
+    }
+    
+    try {
+      setIsDriveDisconnecting(true);
+      console.log("Đang gửi yêu cầu gỡ liên kết Google Drive...");
+      
+      const response = await GoogleDriveService.disconnectDrive();
+      console.log("Kết quả gỡ liên kết:", response.data);
+      
+      if (response.data.success) {
+        Toast.success('Đã gỡ liên kết Google Drive thành công');
+        setDriveInfo(null);
+        setNeedAuth(true);
+      } else {
+        Toast.error(response.data.message || 'Không thể gỡ liên kết Google Drive');
+      }
+    } catch (error) {
+      console.error('Lỗi khi gỡ liên kết Google Drive:', error);
+      
+      // Kiểm tra lỗi cụ thể
+      let errorMessage = 'Lỗi kết nối máy chủ';
+      if (axios.isAxiosError(error)) {
+        if (error.response?.status === 404) {
+          errorMessage = 'Không tìm thấy API endpoint gỡ liên kết (404). Vui lòng kiểm tra cấu hình máy chủ.';
+        } else if (error.response?.data?.message) {
+          errorMessage = error.response.data.message;
+        }
+      }
+      
+      Toast.error(errorMessage);
+    } finally {
+      setIsDriveDisconnecting(false);
     }
   };
 
@@ -449,21 +548,26 @@ const HomePage = () => {
           <div className="flex items-center justify-between gap-4 flex-wrap">
             {/* Logo và thông tin tài khoản Google Drive */}
             <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 dark:from-blue-600 dark:to-indigo-700 shadow-md shadow-blue-500/20 dark:shadow-blue-900/30 ring-2 ring-white/20 dark:ring-blue-900/30">
-                <Database className="h-6 w-6 text-white" />
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 dark:from-blue-600 dark:to-indigo-700 shadow-md shadow-blue-500/20 dark:shadow-blue-900/30 ring-2 ring-white/20 dark:ring-blue-900/30">
+                <Database className="h-7 w-7 text-white" />
               </div>
               
+              {!needAuth && isLoadingDriveInfo && (
+                <DriveInfoSkeleton />
+              )}
+              
               {!needAuth && !isLoadingDriveInfo && driveInfo && (
-                <div className="flex-shrink-0 flex items-center gap-3 p-2 rounded-xl bg-white/60 dark:bg-zinc-900/50 border border-blue-100/80 dark:border-blue-900/30 shadow-sm backdrop-blur-sm">
+                <div className={`flex-shrink-0 flex items-center gap-3 p-2.5 rounded-xl bg-white/70 dark:bg-zinc-900/60 border border-blue-100/80 dark:border-blue-900/30 shadow-sm backdrop-blur-sm ${FADE_IN_ANIMATION}`}>
                   <div className="flex items-center gap-2.5">
                     {driveInfo.picture ? (
                       <img 
                         src={driveInfo.picture} 
                         alt="Avatar" 
-                        className="h-10 w-10 rounded-full object-cover border-2 border-blue-200 dark:border-blue-800 ring-2 ring-white/60 dark:ring-zinc-800/80" 
+                        className="h-11 w-11 rounded-full object-cover border-2 border-blue-200 dark:border-blue-800 ring-2 ring-white/60 dark:ring-zinc-800/80" 
+                        loading="lazy"
                       />
                     ) : (
-                      <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900 dark:to-indigo-900 flex items-center justify-center ring-2 ring-white/60 dark:ring-zinc-800/80">
+                      <div className="h-11 w-11 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900 dark:to-indigo-900 flex items-center justify-center ring-2 ring-white/60 dark:ring-zinc-800/80">
                         <User className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                       </div>
                     )}
@@ -473,7 +577,7 @@ const HomePage = () => {
                     </div>
                   </div>
                   
-                  <div className="flex flex-col justify-center pl-1">
+                  <div className="flex flex-col justify-center pl-2 border-l border-gray-200 dark:border-gray-700 ml-1">
                     <div className="flex items-center gap-1.5 text-xs mb-1">
                       <div className="flex h-4 w-4 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/70">
                         <Cloud className="h-2.5 w-2.5 text-blue-600 dark:text-blue-400" />
@@ -486,20 +590,48 @@ const HomePage = () => {
                     </div>
                     <Progress 
                       value={(driveInfo.quota.used / driveInfo.quota.limit) * 100} 
-                      className="h-1.5 w-28 rounded-full" 
+                      className="h-1.5 w-32 rounded-full" 
                     />
+                  </div>
+                  
+                  <div className="flex ml-1 gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 rounded-full text-gray-500 hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400"
+                      onClick={fetchDriveInfo}
+                      disabled={isLoadingDriveInfo}
+                      title="Làm mới thông tin"
+                    >
+                      <RefreshCw className={`h-3.5 w-3.5 ${isLoadingDriveInfo ? 'animate-spin' : ''}`} />
+                    </Button>
+                    
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 rounded-full text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400"
+                      onClick={handleDisconnectDrive}
+                      disabled={isDriveDisconnecting}
+                      title="Gỡ liên kết Google Drive"
+                    >
+                      {isDriveDisconnecting ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <LogOut className="h-3.5 w-3.5" />
+                      )}
+                    </Button>
                   </div>
                 </div>
               )}
             </div>
 
             {/* Các nút chức năng */}
-            <div className="flex flex-wrap items-center gap-2.5 ml-auto">
+            <div className="flex flex-wrap items-center gap-3 ml-auto">
               {needAuth && (
                 <Button
                   size="sm"
                   variant="outline"
-                  className="h-10 border-amber-200 bg-amber-50/90 text-amber-700 hover:bg-amber-50 dark:border-amber-800/50 dark:bg-amber-900/30 dark:text-amber-400 dark:hover:bg-amber-900/40 shadow-sm backdrop-blur-sm"
+                  className="h-10 px-4 border-amber-200 bg-amber-50/90 text-amber-700 hover:bg-amber-50 dark:border-amber-800/50 dark:bg-amber-900/30 dark:text-amber-400 dark:hover:bg-amber-900/40 shadow-sm backdrop-blur-sm"
                   onClick={() => navigate('/google-auth')}
                 >
                   <Shield className="mr-1.5 h-3.5 w-3.5" />
@@ -511,7 +643,7 @@ const HomePage = () => {
               <Button
                 size="sm"
                 variant="outline"
-                className="h-10 border-indigo-200 bg-indigo-50/90 text-indigo-700 hover:bg-indigo-50 dark:border-indigo-800/50 dark:bg-indigo-900/30 dark:text-indigo-400 dark:hover:bg-indigo-900/40 shadow-sm backdrop-blur-sm"
+                className="h-10 px-4 border-indigo-200 bg-indigo-50/90 text-indigo-700 hover:bg-indigo-50 dark:border-indigo-800/50 dark:bg-indigo-900/30 dark:text-indigo-400 dark:hover:bg-indigo-900/40 shadow-sm backdrop-blur-sm"
                 onClick={() => {
                   if (!selectedProfileId) {
                     Toast.warning('Vui lòng chọn một profile trước khi tạo lịch');
@@ -525,14 +657,14 @@ const HomePage = () => {
               </Button>
 
               {/* Lựa chọn profile và nút tạo backup */}
-              <div className="flex gap-2 flex-shrink-0">
+              <div className="flex gap-2.5 flex-shrink-0">
                 <Select
                   value={selectedProfileId || undefined}
                   onValueChange={setSelectedProfileId}
                   disabled={loadingProfiles}
                 >
                   <SelectTrigger
-                    className="h-10 w-[180px] border-blue-200 bg-white/80 text-sm dark:border-blue-800/50 dark:bg-blue-950/40 shadow-sm backdrop-blur-sm"
+                    className="h-10 w-[200px] border-blue-200 bg-white/80 text-sm dark:border-blue-800/50 dark:bg-blue-950/40 shadow-sm backdrop-blur-sm"
                   >
                     <SelectValue placeholder={
                       loadingProfiles
@@ -561,10 +693,10 @@ const HomePage = () => {
                   </SelectContent>
                 </Select>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2.5">
                   <Button
                     size="sm"
-                    className="h-10 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-sm font-medium"
+                    className="h-10 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md font-medium"
                     onClick={handleCreateBackup}
                     disabled={isCreatingBackup || !selectedProfileId || loadingProfiles}
                   >
@@ -584,9 +716,10 @@ const HomePage = () => {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-10 w-10 p-0 flex items-center justify-center border-blue-200 bg-white/80 text-blue-700 hover:bg-blue-50 dark:border-blue-800/50 dark:bg-blue-950/40 dark:text-blue-400 dark:hover:bg-blue-900/40 shadow-sm backdrop-blur-sm"
+                    className="h-10 w-10 p-0 flex items-center justify-center border-blue-200 bg-white/80 text-blue-700 hover:bg-blue-50 dark:border-blue-800/50 dark:bg-blue-950/40 dark:text-blue-400 dark:hover:bg-blue-900/40 shadow-md backdrop-blur-sm"
                     onClick={fetchBackupFiles}
                     disabled={isSyncing}
+                    title="Làm mới danh sách backup"
                   >
                     <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
                   </Button>

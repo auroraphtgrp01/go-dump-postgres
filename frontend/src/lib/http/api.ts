@@ -117,6 +117,20 @@ export const GoogleDriveService = {
     }
   }>>> => {
     return axios.get('/api/drive/info');
+  },
+  
+  disconnectDrive: (): Promise<AxiosResponse<ApiResponse<any>>> => {
+    console.log("Gọi API gỡ liên kết Google Drive: /api/drive/disconnect");
+    return axios.post('/api/drive/disconnect')
+      .catch(error => {
+        console.error("Lỗi khi gỡ liên kết Drive:", error.response?.status, error.message);
+        if (error.response?.status === 404) {
+          // Thử gọi lại với đường dẫn tương đối
+          console.log("Thử lại với đường dẫn đầy đủ");
+          return axios.post(window.location.origin + '/api/drive/disconnect');
+        }
+        throw error;
+      });
   }
 };
 

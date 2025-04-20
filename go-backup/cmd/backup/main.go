@@ -298,6 +298,10 @@ func startWebApp(cfg *config.Config, port string) {
 		protected.GET("/drive/status", h.CheckDriveStatusHandler)
 		protected.GET("/drive/info", h.GetDriveInfoHandler)
 
+		// Log thông tin route trước khi đăng ký
+		fmt.Println("Đăng ký route POST /api/drive/disconnect để gỡ liên kết Google Drive")
+		protected.POST("/drive/disconnect", h.DisconnectDriveHandler)
+
 		// Quản lý profile database
 		protected.GET("/profiles", h.GetProfilesHandler)
 		protected.GET("/profiles/active", h.GetActiveProfileHandler)

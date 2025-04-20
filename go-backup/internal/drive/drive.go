@@ -78,7 +78,8 @@ func (d *DriveUploader) GetOAuthConfig() *oauth2.Config {
 
 	if domainHost != "" {
 		// Trường hợp có biến môi trường DOMAIN_HOST
-		redirectURL = fmt.Sprintf("http://localhost:%s/callback", domainHost)
+		// redirectURL = fmt.Sprintf("http://localhost:%s/callback", domainHost)
+		redirectURL = fmt.Sprintf("https://%s/callback", domainHost)
 	} else {
 		// Trường hợp không có biến môi trường, sử dụng localhost
 		redirectURL = fmt.Sprintf("http://localhost:%s/callback", d.Config.WebAppPort)
@@ -299,6 +300,29 @@ func (d *DriveUploader) saveToken(path string, token *oauth2.Token) error {
 
 	// Ghi token vào file dưới dạng JSON
 	return json.NewEncoder(f).Encode(token)
+}
+
+// RemoveToken xóa file token để hủy liên kết Google Drive
+func (d *DriveUploader) RemoveToken() error {
+	tokenFile := filepath.Join(d.Config.TokenDir, "token.json")
+
+	// Kiểm tra file có tồn tại không
+	if _, err := os.Stat(tokenFile); os.IsNotExist(err) {
+		return nil // File không tồn tại, không cần xóa
+	}
+
+	// Xóa file token
+	err := os.Remove(tokenFile)
+	if err != nil {
+		return fmt.Errorf("không thể xóa file token: %v", err)
+	}
+
+	// Reset service
+	d.client = nil
+	d.service = nil
+
+	fmt.Println("Đã xóa token Google Drive và hủy liên kết thành công")
+	return nil
 }
 
 // createOrFindFolder tạo hoặc tìm folder trên Drive

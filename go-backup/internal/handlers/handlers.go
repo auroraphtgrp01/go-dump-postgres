@@ -840,6 +840,40 @@ func (h *Handler) ExchangeAuthCodeHandler(c *gin.Context) {
 	})
 }
 
+// DisconnectDriveHandler xử lý yêu cầu hủy liên kết Google Drive
+func (h *Handler) DisconnectDriveHandler(c *gin.Context) {
+	fmt.Printf("Nhận request gỡ liên kết Google Drive từ %s\n", c.ClientIP())
+
+	// Kiểm tra xem DriveUploader có được khởi tạo không
+	if h.DriveUploader == nil {
+		fmt.Println("Lỗi: DriveUploader chưa được khởi tạo")
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Lỗi cấu hình: DriveUploader chưa được khởi tạo",
+		})
+		return
+	}
+
+	// Xóa token
+	fmt.Println("Bắt đầu gỡ liên kết Google Drive...")
+	err := h.DriveUploader.RemoveToken()
+	if err != nil {
+		fmt.Printf("Lỗi gỡ liên kết Google Drive: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": fmt.Sprintf("Không thể hủy liên kết Google Drive: %v", err),
+		})
+		return
+	}
+
+	fmt.Println("Gỡ liên kết Google Drive thành công")
+	// Trả về thành công
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Đã hủy liên kết Google Drive thành công",
+	})
+}
+
 // DeleteBackupHandler xử lý yêu cầu xóa file backup
 func (h *Handler) DeleteBackupHandler(c *gin.Context) {
 	fileID := c.Param("id")
