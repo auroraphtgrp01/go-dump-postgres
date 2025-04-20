@@ -296,6 +296,7 @@ func startWebApp(cfg *config.Config, port string) {
 		protected.POST("/configs", h.UpdateConfigsHandler)
 		protected.GET("/configs/:group", h.GetConfigsByGroupHandler)
 		protected.GET("/drive/status", h.CheckDriveStatusHandler)
+		protected.GET("/drive/info", h.GetDriveInfoHandler)
 
 		// Quản lý profile database
 		protected.GET("/profiles", h.GetProfilesHandler)

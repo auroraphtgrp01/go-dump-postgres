@@ -727,6 +727,54 @@ func (h *Handler) CheckDriveStatusHandler(c *gin.Context) {
 	})
 }
 
+// GetDriveInfoHandler xử lý trả về thông tin tài khoản Google Drive
+func (h *Handler) GetDriveInfoHandler(c *gin.Context) {
+	// Kiểm tra xác thực Google Drive
+	if !h.DriveUploader.CheckAuth() {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success":  false,
+			"message":  "Chưa xác thực với Google Drive. Vui lòng thực hiện xác thực trước.",
+			"redirect": "/auth",
+		})
+		return
+	}
+
+	// Lấy thông tin người dùng
+	userInfo, err := h.DriveUploader.GetUserInfo()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": fmt.Sprintf("Không thể lấy thông tin người dùng: %v", err),
+		})
+		return
+	}
+
+	// Lấy thông tin bộ nhớ
+	storageInfo, err := h.DriveUploader.GetDriveStorage()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": fmt.Sprintf("Không thể lấy thông tin bộ nhớ Drive: %v", err),
+		})
+		return
+	}
+
+	// Trả về thông tin
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": map[string]interface{}{
+			"email":   userInfo.Email,
+			"name":    userInfo.Name,
+			"picture": userInfo.Picture,
+			"quota": map[string]int64{
+				"limit":     storageInfo.Limit,
+				"used":      storageInfo.Used,
+				"available": storageInfo.Limit - storageInfo.Used,
+			},
+		},
+	})
+}
+
 // GetAuthURLHandler trả về URL xác thực Google Drive
 func (h *Handler) GetAuthURLHandler(c *gin.Context) {
 	// Tạo URL xác thực

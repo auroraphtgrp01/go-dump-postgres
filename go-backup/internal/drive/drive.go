@@ -78,7 +78,7 @@ func (d *DriveUploader) GetOAuthConfig() *oauth2.Config {
 
 	if domainHost != "" {
 		// Trường hợp có biến môi trường DOMAIN_HOST
-		redirectURL = fmt.Sprintf("https://%s/callback", domainHost)
+		redirectURL = fmt.Sprintf("http://localhost:%s/callback", domainHost)
 	} else {
 		// Trường hợp không có biến môi trường, sử dụng localhost
 		redirectURL = fmt.Sprintf("http://localhost:%s/callback", d.Config.WebAppPort)
@@ -432,6 +432,107 @@ func (d *DriveUploader) CheckDriveConfig() map[string]string {
 	}
 
 	return issues
+}
+
+// UserInfo chứa thông tin cơ bản về người dùng Google
+type UserInfo struct {
+	Email   string
+	Name    string
+	Picture string
+}
+
+// DriveStorage chứa thông tin về bộ nhớ của Google Drive
+type DriveStorage struct {
+	Limit int64
+	Used  int64
+}
+
+// GetUserInfo lấy thông tin người dùng Google
+func (d *DriveUploader) GetUserInfo() (*UserInfo, error) {
+	// Kiểm tra xác thực
+	if !d.CheckAuth() {
+		return nil, fmt.Errorf("chưa xác thực với Google Drive")
+	}
+
+	// Khởi tạo service nếu cần
+	if d.service == nil {
+		client, err := d.getClient()
+		if err != nil {
+			return nil, fmt.Errorf("không thể lấy client: %v", err)
+		}
+
+		srv, err := drive.New(client)
+		if err != nil {
+			return nil, fmt.Errorf("không thể tạo dịch vụ Drive: %v", err)
+		}
+		d.service = srv
+	}
+
+	// Gọi API để lấy thông tin về người dùng
+	// Sử dụng About.Get API của Google Drive để lấy thông tin người dùng
+	about, err := d.service.About.Get().Fields("user").Do()
+	if err != nil {
+		return nil, fmt.Errorf("không thể lấy thông tin người dùng: %v", err)
+	}
+
+	// Nếu không có thông tin người dùng
+	if about.User == nil {
+		return nil, fmt.Errorf("không thể lấy thông tin người dùng")
+	}
+
+	// Trả về thông tin người dùng
+	return &UserInfo{
+		Email:   about.User.EmailAddress,
+		Name:    about.User.DisplayName,
+		Picture: about.User.PhotoLink,
+	}, nil
+}
+
+// GetDriveStorage lấy thông tin bộ nhớ của Google Drive
+func (d *DriveUploader) GetDriveStorage() (*DriveStorage, error) {
+	// Kiểm tra xác thực
+	if !d.CheckAuth() {
+		return nil, fmt.Errorf("chưa xác thực với Google Drive")
+	}
+
+	// Khởi tạo service nếu cần
+	if d.service == nil {
+		client, err := d.getClient()
+		if err != nil {
+			return nil, fmt.Errorf("không thể lấy client: %v", err)
+		}
+
+		srv, err := drive.New(client)
+		if err != nil {
+			return nil, fmt.Errorf("không thể tạo dịch vụ Drive: %v", err)
+		}
+		d.service = srv
+	}
+
+	// Gọi API để lấy thông tin về dung lượng
+	about, err := d.service.About.Get().Fields("storageQuota").Do()
+	if err != nil {
+		return nil, fmt.Errorf("không thể lấy thông tin bộ nhớ: %v", err)
+	}
+
+	// Kiểm tra thông tin dung lượng
+	if about.StorageQuota == nil {
+		return nil, fmt.Errorf("không thể lấy thông tin bộ nhớ")
+	}
+
+	limit := about.StorageQuota.Limit
+	used := about.StorageQuota.Usage
+
+	// Nếu limit là 0, đặt lại thành mặc định (15GB = 15 * 1024 * 1024 * 1024)
+	if limit == 0 {
+		limit = 15 * 1024 * 1024 * 1024
+	}
+
+	// Trả về thông tin bộ nhớ
+	return &DriveStorage{
+		Limit: limit,
+		Used:  used,
+	}, nil
 }
 
 // UploadFile uploads a file to Google Drive and returns the result

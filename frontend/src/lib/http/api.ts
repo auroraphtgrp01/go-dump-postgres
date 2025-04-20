@@ -105,6 +105,18 @@ export const GoogleDriveService = {
 
   getStatus: (): Promise<AxiosResponse<ApiResponse<{ drive_status: { is_authenticated: boolean } }>>> => {
     return axios.get('/api/drive/status');
+  },
+  
+  getDriveInfo: (): Promise<AxiosResponse<ApiResponse<{ 
+    email: string; 
+    name: string;
+    quota: {
+      limit: number;
+      used: number;
+      available: number;
+    }
+  }>>> => {
+    return axios.get('/api/drive/info');
   }
 };
 

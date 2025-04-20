@@ -30,10 +30,12 @@ import {
   BarChart2,
   LayoutGrid,
   TableProperties,
-  AlarmClock
+  AlarmClock,
+  User,
+  Cloud
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { BackupService } from "@/lib/http/api";
+import { BackupService, GoogleDriveService } from "@/lib/http/api";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -52,10 +54,23 @@ import {
 import { Label } from "@/components/ui/label";
 import ScheduleSelector from "@/components/ScheduleSelector";
 import ActiveSchedules from "@/components/ActiveSchedules";
+import { Progress } from "@/components/ui/progress";
 
 // Transition animation classes
 const FADE_IN_ANIMATION = "animate-in fade-in duration-300";
 const SLIDE_IN_ANIMATION = "animate-in slide-in-from-bottom-5 duration-300";
+
+// Interface cho thông tin Google Drive
+interface DriveInfo {
+  email: string;
+  name: string;
+  quota: {
+    limit: number;
+    used: number;
+    available: number;
+  }
+  picture?: string;
+}
 
 const HomePage = () => {
   // State management
@@ -74,6 +89,8 @@ const HomePage = () => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [statsVisible, setStatsVisible] = useState(true);
   const [viewMode, setViewMode] = useState<"grid" | "table">("table");
+  const [driveInfo, setDriveInfo] = useState<DriveInfo | null>(null);
+  const [isLoadingDriveInfo, setIsLoadingDriveInfo] = useState(false);
 
   // Thêm state cho dialog lịch trình
   const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
@@ -98,6 +115,11 @@ const HomePage = () => {
       // Load backup files and profiles
       fetchBackupFiles();
       fetchProfiles();
+      
+      // Fetch Google Drive info if authenticated
+      if (isAuth) {
+        fetchDriveInfo();
+      }
     };
 
     checkAuth();
@@ -186,6 +208,36 @@ const HomePage = () => {
       setIsLoading(false);
       setIsSyncing(false);
     }
+  };
+
+  // Fetch Google Drive info
+  const fetchDriveInfo = async () => {
+    try {
+      setIsLoadingDriveInfo(true);
+      const response = await GoogleDriveService.getDriveInfo();
+      if (response.data.success) {
+        setDriveInfo(response.data.data);
+      }
+    } catch (error) {
+      console.error("Lỗi lấy thông tin Google Drive:", error);
+    } finally {
+      setIsLoadingDriveInfo(false);
+    }
+  };
+
+  // Format file size
+  const formatStorageSize = (bytes: number): string => {
+    if (bytes < 1024) return bytes + ' B';
+    const units = ['KB', 'MB', 'GB', 'TB'];
+    let size = bytes / 1024;
+    let unitIndex = 0;
+    
+    while (size >= 1024 && unitIndex < units.length - 1) {
+      size /= 1024;
+      unitIndex++;
+    }
+    
+    return size.toFixed(2) + ' ' + units[unitIndex];
   };
 
   // Create new backup
@@ -387,33 +439,67 @@ const HomePage = () => {
 
   return (
     <div className="container max-w-screen-xl mx-auto px-4 py-6 sm:px-6 sm:py-8">
-      {/* Header with refined design */}
-      <div className="relative mb-8 overflow-hidden rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-zinc-900/80 dark:to-indigo-900/30 shadow-md border border-blue-100/80 dark:border-blue-900/20">
-        <div className="absolute right-0 top-0 h-32 w-32 -translate-y-1/3 translate-x-1/3 rounded-full bg-blue-200/40 dark:bg-blue-400/10 blur-2xl"></div>
-        <div className="absolute left-1/4 bottom-0 h-24 w-24 translate-y-1/3 rounded-full bg-indigo-300/30 dark:bg-indigo-500/10 blur-2xl"></div>
+      {/* Header với thiết kế tinh tế và sáng tạo hơn */}
+      <div className="relative mb-8 overflow-hidden rounded-xl bg-gradient-to-r from-blue-50 via-indigo-50/30 to-purple-50/40 dark:from-zinc-900/80 dark:via-indigo-950/20 dark:to-purple-950/20 shadow-lg border border-blue-100/90 dark:border-blue-900/30">
+        <div className="absolute right-0 top-0 h-40 w-40 -translate-y-1/4 translate-x-1/4 rounded-full bg-blue-200/50 dark:bg-blue-500/10 blur-3xl"></div>
+        <div className="absolute left-1/4 bottom-0 h-32 w-32 translate-y-1/3 rounded-full bg-indigo-300/40 dark:bg-indigo-600/10 blur-3xl"></div>
+        <div className="absolute left-0 top-0 h-24 w-24 -translate-x-1/4 -translate-y-1/4 rounded-full bg-purple-200/30 dark:bg-purple-600/10 blur-2xl"></div>
 
-        <div className="relative z-10 p-6">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-5">
-            <div>
-              <div className="flex items-center gap-3 mb-3">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 dark:from-blue-600 dark:to-indigo-500 shadow-md shadow-blue-500/20 dark:shadow-blue-900/30">
-                  <Database className="h-6 w-6 text-white" />
-                </div>
-                <h1 className="text-2xl font-bold text-blue-800 dark:text-blue-300">
-                  PostgreSQL Backup Manager
-                </h1>
+        <div className="relative z-10 px-6 py-5">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            {/* Logo và thông tin tài khoản Google Drive */}
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 dark:from-blue-600 dark:to-indigo-700 shadow-md shadow-blue-500/20 dark:shadow-blue-900/30 ring-2 ring-white/20 dark:ring-blue-900/30">
+                <Database className="h-6 w-6 text-white" />
               </div>
-              <p className="text-sm text-gray-600 dark:text-zinc-300 max-w-lg">
-                Hệ thống quản lý sao lưu và đồng bộ dữ liệu PostgreSQL với Google Drive
-              </p>
+              
+              {!needAuth && !isLoadingDriveInfo && driveInfo && (
+                <div className="flex-shrink-0 flex items-center gap-3 p-2 rounded-xl bg-white/60 dark:bg-zinc-900/50 border border-blue-100/80 dark:border-blue-900/30 shadow-sm backdrop-blur-sm">
+                  <div className="flex items-center gap-2.5">
+                    {driveInfo.picture ? (
+                      <img 
+                        src={driveInfo.picture} 
+                        alt="Avatar" 
+                        className="h-10 w-10 rounded-full object-cover border-2 border-blue-200 dark:border-blue-800 ring-2 ring-white/60 dark:ring-zinc-800/80" 
+                      />
+                    ) : (
+                      <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900 dark:to-indigo-900 flex items-center justify-center ring-2 ring-white/60 dark:ring-zinc-800/80">
+                        <User className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                      </div>
+                    )}
+                    <div>
+                      <div className="text-sm font-medium text-blue-800 dark:text-blue-300">{driveInfo.name}</div>
+                      <div className="text-xs text-gray-600 dark:text-gray-400">{driveInfo.email}</div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-col justify-center pl-1">
+                    <div className="flex items-center gap-1.5 text-xs mb-1">
+                      <div className="flex h-4 w-4 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/70">
+                        <Cloud className="h-2.5 w-2.5 text-blue-600 dark:text-blue-400" />
+                      </div>
+                      <div className="flex gap-1">
+                        <span className="whitespace-nowrap font-medium">{formatStorageSize(driveInfo.quota.used)}</span>
+                        <span className="text-gray-400 dark:text-gray-500">/</span>
+                        <span className="whitespace-nowrap">{formatStorageSize(driveInfo.quota.limit)}</span>
+                      </div>
+                    </div>
+                    <Progress 
+                      value={(driveInfo.quota.used / driveInfo.quota.limit) * 100} 
+                      className="h-1.5 w-28 rounded-full" 
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
-            <div className="flex flex-wrap gap-3 md:justify-end">
+            {/* Các nút chức năng */}
+            <div className="flex flex-wrap items-center gap-2.5 ml-auto">
               {needAuth && (
                 <Button
                   size="sm"
                   variant="outline"
-                  className="border-amber-200 bg-amber-50/80 text-amber-700 hover:bg-amber-50 dark:border-amber-800/50 dark:bg-amber-900/10 dark:text-amber-400 dark:hover:bg-amber-900/20"
+                  className="h-10 border-amber-200 bg-amber-50/90 text-amber-700 hover:bg-amber-50 dark:border-amber-800/50 dark:bg-amber-900/30 dark:text-amber-400 dark:hover:bg-amber-900/40 shadow-sm backdrop-blur-sm"
                   onClick={() => navigate('/google-auth')}
                 >
                   <Shield className="mr-1.5 h-3.5 w-3.5" />
@@ -421,11 +507,11 @@ const HomePage = () => {
                 </Button>
               )}
 
-              {/* Thêm nút lịch trình */}
+              {/* Nút lịch trình */}
               <Button
                 size="sm"
                 variant="outline"
-                className="border-indigo-200 bg-indigo-50/80 text-indigo-700 hover:bg-indigo-50 dark:border-indigo-800/50 dark:bg-indigo-900/10 dark:text-indigo-400 dark:hover:bg-indigo-900/20"
+                className="h-10 border-indigo-200 bg-indigo-50/90 text-indigo-700 hover:bg-indigo-50 dark:border-indigo-800/50 dark:bg-indigo-900/30 dark:text-indigo-400 dark:hover:bg-indigo-900/40 shadow-sm backdrop-blur-sm"
                 onClick={() => {
                   if (!selectedProfileId) {
                     Toast.warning('Vui lòng chọn một profile trước khi tạo lịch');
@@ -438,14 +524,15 @@ const HomePage = () => {
                 Quản lý lịch trình
               </Button>
 
-              <div className="flex gap-2">
+              {/* Lựa chọn profile và nút tạo backup */}
+              <div className="flex gap-2 flex-shrink-0">
                 <Select
                   value={selectedProfileId || undefined}
                   onValueChange={setSelectedProfileId}
                   disabled={loadingProfiles}
                 >
                   <SelectTrigger
-                    className="h-9 w-[180px] border-blue-200 bg-white/90 text-sm dark:border-blue-800/50 dark:bg-blue-950/30"
+                    className="h-10 w-[180px] border-blue-200 bg-white/80 text-sm dark:border-blue-800/50 dark:bg-blue-950/40 shadow-sm backdrop-blur-sm"
                   >
                     <SelectValue placeholder={
                       loadingProfiles
@@ -474,34 +561,36 @@ const HomePage = () => {
                   </SelectContent>
                 </Select>
 
-                <Button
-                  size="sm"
-                  className="h-9 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-sm"
-                  onClick={handleCreateBackup}
-                  disabled={isCreatingBackup || !selectedProfileId || loadingProfiles}
-                >
-                  {isCreatingBackup ? (
-                    <>
-                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                      <span>Đang xử lý...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="mr-1.5 h-3.5 w-3.5" />
-                      <span>Tạo backup</span>
-                    </>
-                  )}
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    className="h-10 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-sm font-medium"
+                    onClick={handleCreateBackup}
+                    disabled={isCreatingBackup || !selectedProfileId || loadingProfiles}
+                  >
+                    {isCreatingBackup ? (
+                      <>
+                        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                        <span>Đang xử lý...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="mr-1.5 h-3.5 w-3.5" />
+                        <span>Tạo backup</span>
+                      </>
+                    )}
+                  </Button>
 
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-9 border-blue-200 bg-white/80 text-blue-700 hover:bg-blue-50 dark:border-blue-800/50 dark:bg-blue-950/30 dark:text-blue-400 dark:hover:bg-blue-900/20"
-                  onClick={fetchBackupFiles}
-                  disabled={isSyncing}
-                >
-                  <RefreshCw className={`h-3.5 w-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
-                </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-10 w-10 p-0 flex items-center justify-center border-blue-200 bg-white/80 text-blue-700 hover:bg-blue-50 dark:border-blue-800/50 dark:bg-blue-950/40 dark:text-blue-400 dark:hover:bg-blue-900/40 shadow-sm backdrop-blur-sm"
+                    onClick={fetchBackupFiles}
+                    disabled={isSyncing}
+                  >
+                    <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
+                  </Button>
+                </div>
               </div>
             </div>
           </div>

@@ -91,6 +91,11 @@ export default defineConfig({
         changeOrigin: true,
         secure: false
       },
+      '/api/drive/info': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        secure: false
+      },
       '/delete-backup': {
         target: 'http://localhost:8080',
         changeOrigin: true,
