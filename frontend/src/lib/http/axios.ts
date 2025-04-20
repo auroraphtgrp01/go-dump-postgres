@@ -1,8 +1,11 @@
 import axios, { AxiosResponse, AxiosError } from 'axios';
 
+// Biến chung cho origin API
+const API_ORIGIN = import.meta.env.VITE_API_URL || window.location.origin;
+
 // Create axios instance with default configs
 const axiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8080',
+  baseURL: API_ORIGIN,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',

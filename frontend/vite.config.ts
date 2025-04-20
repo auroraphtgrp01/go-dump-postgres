@@ -3,6 +3,10 @@ import react from '@vitejs/plugin-react'
 import path from "path"
 import tailwindcss from "@tailwindcss/vite"
 
+// Biến chung cho origin API
+const API_ORIGIN = 'https://dump.uniko.id.vn'
+// const API_ORIGIN = 'http://localhost:8080'
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
@@ -12,122 +16,122 @@ export default defineConfig({
     strictPort: false,
     proxy: {
       '/api': {
-        target: 'http://localhost:8080',
+        target: API_ORIGIN,
         changeOrigin: true,
         secure: false
       },
       '/api/login': {
-        target: 'http://localhost:8080',
+        target: API_ORIGIN,
         changeOrigin: true,
         secure: false
       },
       '/api/logout': {
-        target: 'http://localhost:8080',
+        target: API_ORIGIN,
         changeOrigin: true,
         secure: false
       },
       '/api/auth': {
-        target: 'http://localhost:8080',
+        target: API_ORIGIN,
         changeOrigin: true,
         secure: false
       },
       '/api/auth/google/login': {
-        target: 'http://localhost:8080',
+        target: API_ORIGIN,
         changeOrigin: true,
         secure: false
       },
       '/api/me': {
-        target: 'http://localhost:8080',
+        target: API_ORIGIN,
         changeOrigin: true,
         secure: false
       },
       '/api/callback': {
-        target: 'http://localhost:8080',
+        target: API_ORIGIN,
         changeOrigin: true,
         secure: false
       },
       '/api/config': {
-        target: 'http://localhost:8080',
+        target: API_ORIGIN,
         changeOrigin: true,
         secure: false
       },
       '/api/backups': {
-        target: 'http://localhost:8080',
+        target: API_ORIGIN,
         changeOrigin: true,
         secure: false
       },
       '/api/backup': {
-        target: 'http://localhost:8080',
+        target: API_ORIGIN,
         changeOrigin: true,
         secure: false
       },
       '/api/profiles': {
-        target: 'http://localhost:8080',
+        target: API_ORIGIN,
         changeOrigin: true,
         secure: false
       },
       '/api/auth/url': {
-        target: 'http://localhost:8080',
+        target: API_ORIGIN,
         changeOrigin: true,
         secure: false
       },
       '/api/auth/callback': {
-        target: 'http://localhost:8080',
+        target: API_ORIGIN,
         changeOrigin: true,
         secure: false
       },
       '/api/drive/auth-url': {
-        target: 'http://localhost:8080',
+        target: API_ORIGIN,
         changeOrigin: true,
         secure: false
       },
       '/api/drive/auth-callback': {
-        target: 'http://localhost:8080',
+        target: API_ORIGIN,
         changeOrigin: true,
         secure: false
       },
       '/api/drive/status': {
-        target: 'http://localhost:8080',
+        target: API_ORIGIN,
         changeOrigin: true,
         secure: false
       },
       '/api/drive/info': {
-        target: 'http://localhost:8080',
+        target: API_ORIGIN,
         changeOrigin: true,
         secure: false
       },
       '/delete-backup': {
-        target: 'http://localhost:8080',
+        target: API_ORIGIN,
         changeOrigin: true,
         secure: false
       },
       '/dump': {
-        target: 'http://localhost:8080',
+        target: API_ORIGIN,
         changeOrigin: true,
         secure: false
       },
       '/upload': {
-        target: 'http://localhost:8080',
+        target: API_ORIGIN,
         changeOrigin: true,
         secure: false
       },
       '/upload-last': {
-        target: 'http://localhost:8080',
+        target: API_ORIGIN,
         changeOrigin: true,
         secure: false
       },
       '/upload-all': {
-        target: 'http://localhost:8080',
+        target: API_ORIGIN,
         changeOrigin: true,
         secure: false
       },
       '/download': {
-        target: 'http://localhost:8080',
+        target: API_ORIGIN,
         changeOrigin: true,
         secure: false
       },
       '/api/drive/disconnect': {
-        target: 'http://localhost:8080',
+        target: API_ORIGIN,
         changeOrigin: true,
         secure: false
       }
