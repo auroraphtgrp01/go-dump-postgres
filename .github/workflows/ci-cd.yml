@@ -19,13 +19,22 @@ jobs:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_TOKEN }}
 
-      - name: Build Docker image
-        run: docker build -t auroraphtgrp/go-dump-postgres:latest -f ./Dockerfile .
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
 
-      - name: Push Docker image
-        run: docker push auroraphtgrp/go-dump-postgres:latest
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build and push multi-arch image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: auroraphtgrp/go-dump-postgres:latest
 
       - name: CI/CD Workflow Info
         run: |
           echo "CI/CD Workflow by Minh Tuan Le (auroraphtgrp01)"
-          echo "Workflow completed successfully!"
+          echo "Multi-architecture build completed successfully!"
+          echo "Supported architectures: amd64, arm64"
