@@ -76,14 +76,14 @@ func (d *DriveUploader) GetOAuthConfig() *oauth2.Config {
 	var redirectURL string
 	domainHost := os.Getenv("DOMAIN_HOST")
 
-	if domainHost != "" {
-		// Trường hợp có biến môi trường DOMAIN_HOST
-		// redirectURL = fmt.Sprintf("http://localhost:%s/callback", domainHost)
-		redirectURL = fmt.Sprintf("https://%s/callback", domainHost)
+	if domainHost == "" {
+		fmt.Println("DOMAIN_HOST không được thiết lập")
+		redirectURL = "http://localhost/callback"
 	} else {
-		// Trường hợp không có biến môi trường, sử dụng localhost
-		redirectURL = fmt.Sprintf("http://localhost:%s/callback", d.Config.WebAppPort)
+		redirectURL = fmt.Sprintf("%s/callback", domainHost)
 	}
+
+	fmt.Printf("Redirect URL: %s\n", redirectURL)
 
 	return &oauth2.Config{
 		ClientID:     d.Config.GoogleClientID,

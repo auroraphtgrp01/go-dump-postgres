@@ -43,10 +43,26 @@ type ConfigSaver func(key, value string) error
 
 // InitConfig khởi tạo cấu hình ứng dụng
 func InitConfig() (cfg *Config, err error) {
-	// Load .env
-	err = godotenv.Load()
+	// Get the current working directory
+	currentDir, err := os.Getwd()
 	if err != nil {
-		log.Printf("Warning: .env file không tồn tại: %v", err)
+		log.Printf("Warning: Cannot determine current directory: %v", err)
+	} else {
+		// Try to load .env from parent directory first
+		parentDir := filepath.Dir(currentDir)
+		parentEnvPath := filepath.Join(parentDir, ".env")
+
+		err = godotenv.Load(parentEnvPath)
+		if err != nil {
+			log.Printf("Warning: .env file not found in parent directory (%s): %v", parentEnvPath, err)
+
+			err = godotenv.Load()
+			if err != nil {
+				log.Printf("Warning: .env file not found in current directory: %v", err)
+			}
+		} else {
+			log.Printf("Successfully loaded .env from parent directory: %s", parentEnvPath)
+		}
 	}
 
 	// Khởi tạo config với giá trị mặc định
