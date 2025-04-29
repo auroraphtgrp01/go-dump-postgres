@@ -40,8 +40,8 @@ COPY --from=backend-builder /app/app /app/
 COPY --from=frontend-builder /app/frontend/dist /app/public
 
 # Copy environment files
-COPY .env /app/.env
-COPY backend/.env /app/.env
+# COPY .env /app/.env
+# COPY backend/.env /app/.env
 
 # Set environment variables
 ENV WEBAPP_PORT=8080 \
