@@ -1,0 +1,31 @@
+name: CI/CD Pipeline automated build docker & deploy by Auroraphtgrp01
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+
+      - name: Build Docker image
+        run: docker build -t auroraphtgrp/go-dump-postgres:latest -f ./Dockerfile .
+
+      - name: Push Docker image
+        run: docker push auroraphtgrp/go-dump-postgres:latest
+
+      - name: CI/CD Workflow Info
+        run: |
+          echo "CI/CD Workflow by Minh Tuan Le (auroraphtgrp01)"
+          echo "Workflow completed successfully!"
