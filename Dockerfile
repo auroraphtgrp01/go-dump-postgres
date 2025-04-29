@@ -15,11 +15,11 @@ FROM golang:1.21-alpine AS backend-builder
 WORKDIR /app
 
 # Copy Go package manager files and install dependencies
-COPY go-backup/go.mod go-backup/go.sum ./
+COPY backend/go.mod backend/go.sum ./
 RUN go mod download
 
 # Copy backend source code and build
-COPY go-backup/ ./
+COPY backend/ ./
 RUN CGO_ENABLED=0 GOOS=linux go build -o app ./cmd/backup/main.go
 
 FROM alpine:latest
@@ -41,7 +41,7 @@ COPY --from=frontend-builder /app/frontend/dist /app/public
 
 # Copy environment files
 COPY .env /app/.env
-COPY go-backup/.env /app/.env
+COPY backend/.env /app/.env
 
 # Set environment variables
 ENV WEBAPP_PORT=8080 \
